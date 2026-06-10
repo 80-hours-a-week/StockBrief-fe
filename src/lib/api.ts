@@ -77,6 +77,7 @@ export async function getRecommendationCandidates(
   query: CandidateQuery = {},
 ): Promise<RecommendationCandidateList> {
   const params = new URLSearchParams();
+  if (query.riskProfile) params.set("risk_profile", query.riskProfile);
   if (query.market) params.set("market", query.market);
   if (query.sector) params.set("sector", query.sector);
   if (query.limit) params.set("limit", String(query.limit));
