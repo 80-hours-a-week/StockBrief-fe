@@ -82,7 +82,13 @@ export async function getRecommendationCandidates(
   if (query.sector) params.set("sector", query.sector);
   if (query.limit) params.set("limit", String(query.limit));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  return request<RecommendationCandidateList>(`/recommendations/candidates${suffix}`);
+  const response = await request<StockCandidateContractResponse>(`/stocks/candidates${suffix}`);
+  return {
+    items: response.data.items.map(toRecommendationCandidate),
+    count: response.data.pagination.total,
+    risk_profile: query.riskProfile ?? "balanced",
+    disclaimer: "공개 데이터 기반 검토 후보이며 최종 투자 판단은 사용자에게 있습니다.",
+  };
 }
 
 export async function getRecommendationCandidate(
@@ -95,11 +101,42 @@ export async function searchStocks(query = "", limit = 20): Promise<StockSearchR
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   params.set("limit", String(limit));
-  return request<StockSearchResponse>(`/stocks/search?${params.toString()}`);
+  const response = await request<StockSearchContractResponse>(`/stocks/search?${params.toString()}`);
+  return {
+    query,
+    count: response.data.pagination.total,
+    items: response.data.items.map((item) => ({
+      ticker: item.ticker,
+      name: item.name,
+      market: item.market,
+      sector: item.sector,
+      industry: null,
+    })),
+  };
 }
 
 export async function getStock(ticker: string): Promise<StockDetail> {
-  return request<StockDetail>(`/stocks/${ticker}`);
+  const response = await request<StockDetailContractResponse>(`/stocks/${ticker}`);
+  return {
+    ticker: response.data.stock.ticker,
+    name: response.data.stock.name,
+    name_en: null,
+    market: response.data.stock.market,
+    sector: response.data.stock.sector,
+    industry: null,
+    listing_date: null,
+    is_active: true,
+    identifiers: response.data.stock.corp_code
+      ? [
+          {
+            provider: "OpenDART",
+            identifier_type: "corp_code",
+            identifier_value: response.data.stock.corp_code,
+            is_primary: true,
+          },
+        ]
+      : [],
+  };
 }
 
 export async function getStockEvidence(
@@ -107,32 +144,56 @@ export async function getStockEvidence(
   types?: Array<"financial" | "news" | "disclosure" | "price">,
 ): Promise<StockEvidenceResponse> {
   const params = new URLSearchParams();
-  if (types?.length) params.set("types", types.join(","));
+  if (types?.length) params.set("source_type", toContractEvidenceFilter(types));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  return request<StockEvidenceResponse>(`/stocks/${ticker}/evidence${suffix}`);
+  const response = await request<StockEvidenceContractResponse>(`/stocks/${ticker}/evidence${suffix}`);
+  return {
+    ticker: response.data.ticker,
+    evidence: response.data.items.map((item) => ({
+      id: item.id,
+      type: fromContractSourceType(item.source_type),
+      title: item.title,
+      summary: item.snippet,
+      source_name: item.source_name,
+      source_url: item.url,
+      source_identifier:
+        typeof item.metadata.source_identifier === "string"
+          ? item.metadata.source_identifier
+          : null,
+      published_at: item.published_at,
+      as_of_date: typeof item.metadata.as_of_date === "string" ? item.metadata.as_of_date : null,
+      data_status:
+        item.metadata.data_status === "fallback" || item.metadata.data_status === "missing"
+          ? item.metadata.data_status
+          : "available",
+    })),
+    message: response.data.items.length === 0 ? "표시할 근거가 아직 없습니다." : null,
+  };
 }
 
 export async function postChat(requestBody: ChatRequest): Promise<ChatResponse> {
-  return request<ChatResponse>("/chat", {
+  const response = await request<ChatContractResponse>("/chat", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(requestBody),
   });
+  return toChatResponse(response);
 }
 
 export async function postAuthenticatedChat(
   accessToken: string,
   requestBody: ChatRequest,
 ): Promise<ChatResponse> {
-  return authorizedRequest<ChatResponse>("/chat", accessToken, {
+  const response = await authorizedRequest<ChatContractResponse>("/chat", accessToken, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(requestBody),
   });
+  return toChatResponse(response);
 }
 
 export async function getMe(accessToken: string): Promise<MeResponse> {
@@ -226,4 +287,204 @@ export async function getUserChatSessions(
   accessToken: string,
 ): Promise<UserChatSessionListResponse> {
   return authorizedRequest<UserChatSessionListResponse>("/me/chat-sessions", accessToken);
+}
+
+interface ApiEnvelope<T> {
+  success: true;
+  data: T;
+  message: string;
+  request_id: string;
+}
+
+interface PaginationContract {
+  limit: number;
+  offset: number;
+  total: number;
+  has_more: boolean;
+}
+
+type StockCandidateContractResponse = ApiEnvelope<{
+    as_of: string;
+    items: StockCandidateContractItem[];
+    pagination: PaginationContract;
+  }>;
+
+interface StockCandidateContractItem {
+  ticker: string;
+  name: string;
+  market: string;
+  sector: string | null;
+  score: {
+    total: number;
+    grade: string;
+    as_of: string;
+    version: string;
+    breakdown: {
+      momentum: number;
+      liquidity: number;
+      disclosure: number;
+      news: number;
+    };
+  };
+  price: {
+    close: number | null;
+    change_rate: number | null;
+    volume: number | null;
+    trade_date: string | null;
+  } | null;
+  evidence_summary: {
+    news_count: number;
+    disclosure_count: number;
+    latest_at: string | null;
+  };
+}
+
+type StockSearchContractResponse = ApiEnvelope<{
+    items: Array<{
+      ticker: string;
+      name: string;
+      market: string;
+      sector: string | null;
+      corp_code: string | null;
+      match_reason: string;
+    }>;
+    pagination: PaginationContract;
+  }>;
+
+type StockDetailContractResponse = ApiEnvelope<{
+    stock: {
+      ticker: string;
+      name: string;
+      market: string;
+      sector: string | null;
+      corp_code: string | null;
+    };
+  }>;
+
+type StockEvidenceContractResponse = ApiEnvelope<{
+    ticker: string;
+    items: Array<{
+      id: string;
+      source_type: "NEWS" | "DISCLOSURE" | "SCORE" | "CHUNK";
+      title: string;
+      source_name: string;
+      url: string | null;
+      published_at: string | null;
+      snippet: string;
+      metadata: Record<string, unknown>;
+    }>;
+    pagination: PaginationContract;
+  }>;
+
+type ChatContractResponse = ApiEnvelope<{
+    session_id: string;
+    answer: string;
+    citations: Array<{
+      id: string;
+      source_type: "NEWS" | "DISCLOSURE" | "SCORE" | "CHUNK";
+      title: string;
+      url: string | null;
+      published_at: string | null;
+    }>;
+    safety: {
+      policy_action: "ALLOW" | "REDIRECT" | "BLOCK";
+      disclaimer: string;
+    };
+  }>;
+
+function toRecommendationCandidate(item: StockCandidateContractItem): RecommendationCandidate {
+  const asOf = item.score.as_of;
+  return {
+    ticker: item.ticker,
+    name: item.name,
+    market: item.market,
+    sector: item.sector,
+    recommendation_score: item.score.total,
+    score_components: [
+      component("momentum_volatility", 10, item.score.breakdown.momentum),
+      component("liquidity", 10, item.score.breakdown.liquidity),
+      component("disclosure_event", 10, item.score.breakdown.disclosure),
+      component("news_attention", 10, item.score.breakdown.news),
+      component("financial_stability", 20, 0),
+      component("profitability", 15, 0),
+      component("growth", 15, 0),
+      component("valuation", 10, 0),
+    ],
+    recommendation_reasons: [
+      {
+        reason_id: `contract-${item.ticker}-summary`,
+        component: "news_attention",
+        summary: "공개 데이터 기준 점수와 근거 요약이 확인됩니다.",
+        evidence_ids: [],
+        source_document_ids: [],
+      },
+    ],
+    risk_tags: [],
+    evidence_level:
+      item.evidence_summary.news_count + item.evidence_summary.disclosure_count >= 2
+        ? "medium"
+        : "weak",
+    evidence_count: item.evidence_summary.news_count + item.evidence_summary.disclosure_count,
+    missing_data: [],
+    data_freshness: {
+      as_of: asOf,
+      price_as_of: item.price?.trade_date ?? asOf,
+      latest_evidence_at: item.evidence_summary.latest_at,
+    },
+    disclaimer: "공개 데이터 기반 검토 후보이며 최종 투자 판단은 사용자에게 있습니다.",
+  };
+}
+
+function component(name: string, weight: number, weightedScore: number) {
+  return {
+    name,
+    weight,
+    raw_score: null,
+    weighted_score: weightedScore,
+    reason: "API 명세서 기반 mock 응답에서 계산된 점수 항목입니다.",
+    input_refs: [],
+    evidence_ids: [],
+  };
+}
+
+function toContractEvidenceFilter(
+  types: Array<"financial" | "news" | "disclosure" | "price">,
+) {
+  if (types.includes("news")) return "NEWS";
+  if (types.includes("disclosure")) return "DISCLOSURE";
+  if (types.includes("financial") || types.includes("price")) return "SCORE";
+  return "CHUNK";
+}
+
+function fromContractSourceType(
+  sourceType: "NEWS" | "DISCLOSURE" | "SCORE" | "CHUNK",
+): "financial" | "news" | "disclosure" | "price" {
+  if (sourceType === "NEWS") return "news";
+  if (sourceType === "DISCLOSURE") return "disclosure";
+  if (sourceType === "SCORE") return "financial";
+  return "disclosure";
+}
+
+function toChatResponse(response: ChatContractResponse): ChatResponse {
+  return {
+    session_id: response.data.session_id,
+    message_id: null,
+    answer: response.data.answer,
+    citations: response.data.citations.map((citation) => ({
+      evidence_id: citation.id,
+      type: fromContractSourceType(citation.source_type),
+      title: citation.title,
+      source_name: citation.source_type,
+      source_url: citation.url,
+      as_of_date: citation.published_at,
+    })),
+    policy_status: fromPolicyAction(response.data.safety.policy_action),
+    used_evidence_ids: response.data.citations.map((citation) => citation.id),
+  };
+}
+
+function fromPolicyAction(action: "ALLOW" | "REDIRECT" | "BLOCK") {
+  if (action === "ALLOW") return "allowed";
+  if (action === "REDIRECT") return "redirected";
+  return "blocked";
 }

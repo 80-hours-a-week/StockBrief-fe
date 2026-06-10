@@ -33,7 +33,7 @@ export default async function HomePage() {
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link
-              href="/recommendations"
+              href="/explore"
               className="rounded-md bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent focus:outline-none focus:shadow-focus"
             >
               추천 후보 보기
@@ -63,7 +63,7 @@ export default async function HomePage() {
               점수만이 아니라 추천 이유, 근거 수준, 리스크 태그를 함께 확인합니다.
             </p>
           </div>
-          <Link href="/recommendations" className="text-sm font-semibold text-accent">
+          <Link href="/explore" className="text-sm font-semibold text-accent">
             전체 보기
           </Link>
         </div>

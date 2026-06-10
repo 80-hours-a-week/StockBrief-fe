@@ -2,8 +2,9 @@ import Link from "next/link";
 
 const navItems = [
   { href: "/", label: "홈" },
-  { href: "/recommendations", label: "추천 후보" },
+  { href: "/explore", label: "탐색" },
   { href: "/watchlist", label: "관심종목" },
+  { href: "/chat", label: "챗봇" },
   { href: "/onboarding", label: "선호 설정" },
   { href: "/account", label: "계정" },
 ];
