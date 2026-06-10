@@ -1,0 +1,38 @@
+name: 기능
+description: 새 화면, 상호작용, 상태, API 연동
+title: "[FE] feat: "
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 기능 요약
+    validations:
+      required: true
+  - type: textarea
+    id: value
+    attributes:
+      label: 사용자/제품 가치
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: 범위
+      placeholder: 포함/제외 항목을 적는다
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 기준
+      value: |
+        - 화면/상태 구현 완료
+        - lint, typecheck, build 통과
+        - 필요 시 API 타입 반영
+    validations:
+      required: true
+  - type: textarea
+    id: deps
+    attributes:
+      label: 의존 이슈
+      placeholder: #123, #124
