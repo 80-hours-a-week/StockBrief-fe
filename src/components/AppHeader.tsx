@@ -1,0 +1,33 @@
+import Link from "next/link";
+
+const navItems = [
+  { href: "/", label: "홈" },
+  { href: "/recommendations", label: "추천 후보" },
+  { href: "/watchlist", label: "관심종목" },
+  { href: "/onboarding", label: "선호 설정" },
+  { href: "/account", label: "계정" },
+];
+
+export function AppHeader() {
+  return (
+    <header className="border-b border-line bg-white/90 backdrop-blur">
+      <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between px-5">
+        <Link href="/" className="flex items-baseline gap-2">
+          <span className="text-xl font-semibold text-ink">StockBrief</span>
+          <span className="hidden text-sm text-muted sm:inline">국내 종목 검토 후보</span>
+        </Link>
+        <nav className="flex items-center gap-1">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted transition hover:bg-field hover:text-ink focus:outline-none focus:shadow-focus"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </header>
+  );
+}
