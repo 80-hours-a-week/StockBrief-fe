@@ -17,6 +17,8 @@ StockBrief는 투자 조언을 제공하지 않는다. 모든 추천은 `검토 
 
 ## 로컬 셋업
 
+Node.js 24.x 기준으로 개발한다. `.nvmrc`를 사용하면 버전을 맞추기 쉽다.
+
 ```bash
 npm install
 ```
