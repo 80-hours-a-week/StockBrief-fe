@@ -94,7 +94,6 @@ export function WatchlistToggle({
           await addServerWatchlistItem(accessToken, item);
           setSaved(true);
         }
-        await refreshServerWatchlistSnapshot(accessToken);
         notifyServerWatchlistChanged();
       } finally {
         setReady(true);

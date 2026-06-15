@@ -52,9 +52,20 @@ export function clearServerWatchlistSnapshot(): void {
 export async function refreshServerWatchlistSnapshot(
   accessToken: string,
 ): Promise<ServerWatchlistResponse> {
-  cachedToken = null;
-  cachedResponse = null;
-  return getServerWatchlistSnapshot(accessToken);
+  if (pendingToken === accessToken && pendingRequest) {
+    return pendingRequest;
+  }
+  pendingToken = accessToken;
+  pendingRequest = getServerWatchlist(accessToken)
+    .then((response) => {
+      setServerWatchlistSnapshot(accessToken, response);
+      return response;
+    })
+    .finally(() => {
+      pendingToken = null;
+      pendingRequest = null;
+    });
+  return pendingRequest;
 }
 
 export function isTickerInServerWatchlist(ticker: string): boolean {
