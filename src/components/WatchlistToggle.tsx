@@ -18,7 +18,6 @@ import {
   saveWatchlistItem,
   subscribeWatchlist,
 } from "@/lib/watchlist-storage";
-import type { ServerWatchlistResponse } from "@/types/api";
 import type { WatchlistInput } from "@/types/watchlist";
 
 export function WatchlistToggle({
