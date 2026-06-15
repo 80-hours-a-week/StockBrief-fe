@@ -7,6 +7,7 @@ import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
 import {
   getServerWatchlistSnapshot,
   readServerWatchlistSnapshot,
+  refreshServerWatchlistSnapshot,
   subscribeServerWatchlistSnapshot,
   updateServerWatchlistSnapshot,
 } from "@/lib/server-watchlist-store";
@@ -80,6 +81,7 @@ export function WatchlistToggle({
   async function toggle() {
     if (accessToken) {
       const previousSnapshot = serverSnapshot;
+      const appliedOptimistically = Boolean(previousSnapshot);
       setReady(false);
       applyOptimisticServerWatchlistToggle(accessToken, item, currentSaved);
       try {
@@ -88,9 +90,12 @@ export function WatchlistToggle({
         } else {
           await addServerWatchlistItem(accessToken, item);
         }
+        if (!appliedOptimistically) {
+          await refreshServerWatchlistSnapshot(accessToken);
+        }
       } catch (error) {
         if (previousSnapshot) {
-          updateServerWatchlistSnapshot(accessToken, () => previousSnapshot);
+          rollbackServerWatchlistToggle(accessToken, item.ticker, previousSnapshot);
         }
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
       } finally {
@@ -157,7 +162,7 @@ function addSnapshotItem(
       },
       ...snapshot.items,
     ],
-    count: snapshot.count + 1,
+    count: snapshot.items.length + 1,
   };
 }
 
@@ -171,6 +176,38 @@ function removeSnapshotItem(
   }
   return {
     items: nextItems,
-    count: Math.max(0, snapshot.count - 1),
+    count: nextItems.length,
   };
+}
+
+function rollbackServerWatchlistToggle(
+  accessToken: string,
+  ticker: string,
+  previousSnapshot: ServerWatchlistResponse,
+): void {
+  const previousItem = previousSnapshot.items.find((serverItem) => serverItem.ticker === ticker);
+  updateServerWatchlistSnapshot(accessToken, (current) => {
+    if (previousItem) {
+      if (current.items.some((serverItem) => serverItem.ticker === ticker)) {
+        const nextItems = current.items.map((serverItem) =>
+          serverItem.ticker === ticker ? previousItem : serverItem,
+        );
+        return {
+          items: nextItems,
+          count: nextItems.length,
+        };
+      }
+      const nextItems = [previousItem, ...current.items];
+      return {
+        items: nextItems,
+        count: nextItems.length,
+      };
+    }
+
+    const nextItems = current.items.filter((serverItem) => serverItem.ticker !== ticker);
+    return {
+      items: nextItems,
+      count: nextItems.length,
+    };
+  });
 }
