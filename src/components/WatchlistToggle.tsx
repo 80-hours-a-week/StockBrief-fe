@@ -86,6 +86,8 @@ export function WatchlistToggle({
           await addServerWatchlistItem(accessToken, item);
         }
         await refreshServerWatchlistSnapshot(accessToken);
+      } catch (error) {
+        console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
       } finally {
         setReady(true);
       }
