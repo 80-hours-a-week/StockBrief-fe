@@ -80,23 +80,32 @@ export function WatchlistToggle({
 
   async function toggle() {
     if (accessToken) {
-      const previousSnapshot = serverSnapshot;
-      const appliedOptimistically = Boolean(previousSnapshot);
       setReady(false);
-      applyOptimisticServerWatchlistToggle(accessToken, item, currentSaved);
+
+      let baselineSnapshot = serverSnapshot;
+      if (!baselineSnapshot) {
+        try {
+          baselineSnapshot = await refreshServerWatchlistSnapshot(accessToken);
+        } catch (error) {
+          console.error("서버 관심종목 상태를 불러오지 못했습니다.", error);
+          setReady(true);
+          return;
+        }
+      }
+
+      const wasSaved = baselineSnapshot.items.some(
+        (serverItem) => serverItem.ticker === item.ticker,
+      );
+      applyOptimisticServerWatchlistToggle(accessToken, item, wasSaved);
+
       try {
-        if (currentSaved) {
+        if (wasSaved) {
           await deleteServerWatchlistItem(accessToken, item.ticker);
         } else {
           await addServerWatchlistItem(accessToken, item);
         }
-        if (!appliedOptimistically) {
-          await refreshServerWatchlistSnapshot(accessToken);
-        }
       } catch (error) {
-        if (previousSnapshot) {
-          rollbackServerWatchlistToggle(accessToken, item.ticker, previousSnapshot);
-        }
+        rollbackServerWatchlistToggle(accessToken, item.ticker, baselineSnapshot);
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
       } finally {
         setReady(true);
