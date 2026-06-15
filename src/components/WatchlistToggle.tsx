@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { addServerWatchlistItem, deleteServerWatchlistItem } from "@/lib/api";
 import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
 import {
   getServerWatchlistSnapshot,
-  isTickerInServerWatchlist,
+  readServerWatchlistSnapshot,
   refreshServerWatchlistSnapshot,
   subscribeServerWatchlistSnapshot,
 } from "@/lib/server-watchlist-store";
@@ -16,7 +16,6 @@ import {
   saveWatchlistItem,
   subscribeWatchlist,
 } from "@/lib/watchlist-storage";
-import { notifyServerWatchlistChanged, subscribeServerWatchlistChanged } from "@/lib/watchlist-sync";
 import type { WatchlistInput } from "@/types/watchlist";
 
 export function WatchlistToggle({
@@ -29,6 +28,14 @@ export function WatchlistToggle({
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const serverSnapshot = useSyncExternalStore(
+    subscribeServerWatchlistSnapshot,
+    () => readServerWatchlistSnapshot(accessToken),
+    () => null,
+  );
+  const serverSaved =
+    serverSnapshot?.items.some((serverItem) => serverItem.ticker === item.ticker) ?? false;
+  const currentSaved = accessToken ? serverSaved : saved;
 
   useEffect(() => {
     const sync = () => {
@@ -56,9 +63,8 @@ export function WatchlistToggle({
       setReady(false);
       try {
         await getServerWatchlistSnapshot(token);
-        if (!cancelled) setSaved(isTickerInServerWatchlist(item.ticker));
       } catch {
-        if (!cancelled) setSaved(false);
+        // Keep the previous snapshot if refresh fails; the button remains usable for retry.
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -70,38 +76,23 @@ export function WatchlistToggle({
     };
   }, [accessToken, item.ticker]);
 
-  useEffect(() => {
-    if (!accessToken) return () => undefined;
-    const sync = () => setSaved(isTickerInServerWatchlist(item.ticker));
-    const unsubscribeSnapshot = subscribeServerWatchlistSnapshot(sync);
-    const unsubscribeChanged = subscribeServerWatchlistChanged(() => {
-      void refreshServerWatchlistSnapshot(accessToken);
-    });
-    return () => {
-      unsubscribeSnapshot();
-      unsubscribeChanged();
-    };
-  }, [accessToken, item.ticker]);
-
   async function toggle() {
     if (accessToken) {
       setReady(false);
       try {
-        if (saved) {
+        if (currentSaved) {
           await deleteServerWatchlistItem(accessToken, item.ticker);
-          setSaved(false);
         } else {
           await addServerWatchlistItem(accessToken, item);
-          setSaved(true);
         }
-        notifyServerWatchlistChanged();
+        await refreshServerWatchlistSnapshot(accessToken);
       } finally {
         setReady(true);
       }
       return;
     }
 
-    if (saved) {
+    if (currentSaved) {
       removeWatchlistItem(item.ticker);
       return;
     }
@@ -109,18 +100,18 @@ export function WatchlistToggle({
     saveWatchlistItem(item);
   }
 
-  const label = saved ? "관심종목 해제" : "관심종목 저장";
+  const label = currentSaved ? "관심종목 해제" : "관심종목 저장";
   const baseClass =
     "inline-flex items-center justify-center rounded-md border text-sm font-semibold transition focus:outline-none focus:shadow-focus disabled:cursor-not-allowed disabled:opacity-60";
   const sizeClass = variant === "compact" ? "px-3 py-1.5" : "px-4 py-2";
-  const toneClass = saved
+  const toneClass = currentSaved
     ? "border-accent bg-accent text-white hover:bg-ink"
     : "border-line bg-white text-ink hover:border-accent hover:text-accent";
 
   return (
     <button
       type="button"
-      aria-pressed={saved}
+      aria-pressed={currentSaved}
       disabled={!ready}
       onClick={() => void toggle()}
       className={`${baseClass} ${sizeClass} ${toneClass}`}
