@@ -9,6 +9,7 @@ import {
   readServerWatchlistSnapshot,
   refreshServerWatchlistSnapshot,
   subscribeServerWatchlistSnapshot,
+  updateServerWatchlistSnapshot,
 } from "@/lib/server-watchlist-store";
 import {
   isTickerSaved,
@@ -16,6 +17,7 @@ import {
   saveWatchlistItem,
   subscribeWatchlist,
 } from "@/lib/watchlist-storage";
+import type { ServerWatchlistResponse } from "@/types/api";
 import type { WatchlistInput } from "@/types/watchlist";
 
 export function WatchlistToggle({
@@ -79,14 +81,31 @@ export function WatchlistToggle({
   async function toggle() {
     if (accessToken) {
       setReady(false);
+
+      let baselineSnapshot = serverSnapshot;
+      if (!baselineSnapshot) {
+        try {
+          baselineSnapshot = await refreshServerWatchlistSnapshot(accessToken);
+        } catch (error) {
+          console.error("서버 관심종목 상태를 불러오지 못했습니다.", error);
+          setReady(true);
+          return;
+        }
+      }
+
+      const wasSaved = baselineSnapshot.items.some(
+        (serverItem) => serverItem.ticker === item.ticker,
+      );
+      applyOptimisticServerWatchlistToggle(accessToken, item, wasSaved);
+
       try {
-        if (currentSaved) {
+        if (wasSaved) {
           await deleteServerWatchlistItem(accessToken, item.ticker);
         } else {
           await addServerWatchlistItem(accessToken, item);
         }
-        await refreshServerWatchlistSnapshot(accessToken);
       } catch (error) {
+        rollbackServerWatchlistToggle(accessToken, item.ticker, baselineSnapshot);
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
       } finally {
         setReady(true);
@@ -121,4 +140,83 @@ export function WatchlistToggle({
       {ready ? label : "상태 확인"}
     </button>
   );
+}
+
+function applyOptimisticServerWatchlistToggle(
+  accessToken: string,
+  item: WatchlistInput,
+  saved: boolean,
+): void {
+  updateServerWatchlistSnapshot(accessToken, (snapshot) =>
+    saved ? removeSnapshotItem(snapshot, item.ticker) : addSnapshotItem(snapshot, item),
+  );
+}
+
+function addSnapshotItem(
+  snapshot: ServerWatchlistResponse,
+  item: WatchlistInput,
+): ServerWatchlistResponse {
+  if (snapshot.items.some((serverItem) => serverItem.ticker === item.ticker)) {
+    return snapshot;
+  }
+  return {
+    items: [
+      {
+        ticker: item.ticker,
+        name: item.name,
+        market: item.market,
+        sector: item.sector ?? null,
+        memo: item.memo ?? null,
+        saved_at: new Date().toISOString(),
+      },
+      ...snapshot.items,
+    ],
+    count: snapshot.items.length + 1,
+  };
+}
+
+function removeSnapshotItem(
+  snapshot: ServerWatchlistResponse,
+  ticker: string,
+): ServerWatchlistResponse {
+  const nextItems = snapshot.items.filter((serverItem) => serverItem.ticker !== ticker);
+  if (nextItems.length === snapshot.items.length) {
+    return snapshot;
+  }
+  return {
+    items: nextItems,
+    count: nextItems.length,
+  };
+}
+
+function rollbackServerWatchlistToggle(
+  accessToken: string,
+  ticker: string,
+  previousSnapshot: ServerWatchlistResponse,
+): void {
+  const previousItem = previousSnapshot.items.find((serverItem) => serverItem.ticker === ticker);
+  updateServerWatchlistSnapshot(accessToken, (current) => {
+    if (previousItem) {
+      if (current.items.some((serverItem) => serverItem.ticker === ticker)) {
+        const nextItems = current.items.map((serverItem) =>
+          serverItem.ticker === ticker ? previousItem : serverItem,
+        );
+        return {
+          items: nextItems,
+          count: nextItems.length,
+        };
+      }
+      const nextItems = [previousItem, ...current.items];
+      return {
+        items: nextItems,
+        count: nextItems.length,
+      };
+    }
+
+    const nextItems = current.items.filter((serverItem) => serverItem.ticker !== ticker);
+    return {
+      items: nextItems,
+      count: nextItems.length,
+    };
+  });
 }
