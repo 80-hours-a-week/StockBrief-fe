@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 
 import { AppHeader } from "@/components/AppHeader";
 import { DisclaimerBanner } from "@/components/DisclaimerBanner";
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <AppHeader />
         <DisclaimerBanner />
         <main>{children}</main>
+        <Toaster />
       </body>
     </html>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 
 import { addServerWatchlistItem, deleteServerWatchlistItem } from "@/lib/api";
 import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
@@ -90,9 +91,9 @@ export function WatchlistToggle({
           await addServerWatchlistItem(accessToken, item);
         }
         await refreshServerWatchlistSnapshot(accessToken);
-      } catch (error) {
+      } catch {
         rollbackServerWatchlist(accessToken);
-        console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
+        toast.error("요청에 실패했습니다. 다시 시도해 주세요.");
       } finally {
         setReady(true);
       }
