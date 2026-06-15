@@ -7,8 +7,8 @@ import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
 import {
   getServerWatchlistSnapshot,
   readServerWatchlistSnapshot,
-  refreshServerWatchlistSnapshot,
   subscribeServerWatchlistSnapshot,
+  updateServerWatchlistSnapshot,
 } from "@/lib/server-watchlist-store";
 import {
   isTickerSaved,
@@ -16,6 +16,7 @@ import {
   saveWatchlistItem,
   subscribeWatchlist,
 } from "@/lib/watchlist-storage";
+import type { ServerWatchlistResponse } from "@/types/api";
 import type { WatchlistInput } from "@/types/watchlist";
 
 export function WatchlistToggle({
@@ -78,15 +79,19 @@ export function WatchlistToggle({
 
   async function toggle() {
     if (accessToken) {
+      const previousSnapshot = serverSnapshot;
       setReady(false);
+      applyOptimisticServerWatchlistToggle(accessToken, item, currentSaved);
       try {
         if (currentSaved) {
           await deleteServerWatchlistItem(accessToken, item.ticker);
         } else {
           await addServerWatchlistItem(accessToken, item);
         }
-        await refreshServerWatchlistSnapshot(accessToken);
       } catch (error) {
+        if (previousSnapshot) {
+          updateServerWatchlistSnapshot(accessToken, () => previousSnapshot);
+        }
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
       } finally {
         setReady(true);
@@ -121,4 +126,51 @@ export function WatchlistToggle({
       {ready ? label : "상태 확인"}
     </button>
   );
+}
+
+function applyOptimisticServerWatchlistToggle(
+  accessToken: string,
+  item: WatchlistInput,
+  saved: boolean,
+): void {
+  updateServerWatchlistSnapshot(accessToken, (snapshot) =>
+    saved ? removeSnapshotItem(snapshot, item.ticker) : addSnapshotItem(snapshot, item),
+  );
+}
+
+function addSnapshotItem(
+  snapshot: ServerWatchlistResponse,
+  item: WatchlistInput,
+): ServerWatchlistResponse {
+  if (snapshot.items.some((serverItem) => serverItem.ticker === item.ticker)) {
+    return snapshot;
+  }
+  return {
+    items: [
+      {
+        ticker: item.ticker,
+        name: item.name,
+        market: item.market,
+        sector: item.sector ?? null,
+        memo: item.memo ?? null,
+        saved_at: new Date().toISOString(),
+      },
+      ...snapshot.items,
+    ],
+    count: snapshot.count + 1,
+  };
+}
+
+function removeSnapshotItem(
+  snapshot: ServerWatchlistResponse,
+  ticker: string,
+): ServerWatchlistResponse {
+  const nextItems = snapshot.items.filter((serverItem) => serverItem.ticker !== ticker);
+  if (nextItems.length === snapshot.items.length) {
+    return snapshot;
+  }
+  return {
+    items: nextItems,
+    count: Math.max(0, snapshot.count - 1),
+  };
 }
