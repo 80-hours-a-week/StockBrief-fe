@@ -22,7 +22,7 @@ export function OnboardingForm() {
   useEffect(() => {
     const raw = window.localStorage.getItem(storageKey);
     if (raw) {
-      queueMicrotask(() => setPreferences(JSON.parse(raw) as Preferences));
+      queueMicrotask(() => setPreferences(parsePreferences(raw)));
     }
   }, []);
 
@@ -99,4 +99,26 @@ export function OnboardingForm() {
       </div>
     </div>
   );
+}
+
+function parsePreferences(raw: string): Preferences {
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return isPreferences(parsed) ? parsed : defaultPreferences;
+  } catch {
+    return defaultPreferences;
+  }
+}
+
+function isPreferences(value: unknown): value is Preferences {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Partial<Preferences>;
+  const validRiskProfile =
+    candidate.riskProfile === "conservative" ||
+    candidate.riskProfile === "balanced" ||
+    candidate.riskProfile === "aggressive";
+  const validMarkets =
+    Array.isArray(candidate.markets) &&
+    candidate.markets.every((market) => market === "KOSPI" || market === "KOSDAQ");
+  return validRiskProfile && validMarkets;
 }
