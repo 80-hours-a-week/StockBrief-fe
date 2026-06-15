@@ -1,4 +1,12 @@
 import type {
+  ChatContractResponse,
+  StockCandidateContractItem,
+  StockCandidateContractResponse,
+  StockDetailContractResponse,
+  StockEvidenceContractResponse,
+  StockSearchContractResponse,
+} from "@/types/api-contract";
+import type {
   ChatRequest,
   ChatResponse,
   MeResponse,
@@ -14,6 +22,8 @@ import type {
   UserPreferencesResponse,
 } from "@/types/api";
 import type { WatchlistInput } from "@/types/watchlist";
+
+type EvidenceFilterType = "financial" | "news" | "disclosure" | "price";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/v1";
 
@@ -141,10 +151,10 @@ export async function getStock(ticker: string): Promise<StockDetail> {
 
 export async function getStockEvidence(
   ticker: string,
-  types?: Array<"financial" | "news" | "disclosure" | "price">,
+  type?: EvidenceFilterType,
 ): Promise<StockEvidenceResponse> {
   const params = new URLSearchParams();
-  if (types?.length) params.set("source_type", toContractEvidenceFilter(types));
+  if (type) params.set("source_type", toContractEvidenceFilter(type));
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const response = await request<StockEvidenceContractResponse>(`/stocks/${encodeURIComponent(ticker)}/evidence${suffix}`);
   return {
@@ -289,109 +299,6 @@ export async function getUserChatSessions(
   return authorizedRequest<UserChatSessionListResponse>("/me/chat-sessions", accessToken);
 }
 
-interface ApiEnvelope<T> {
-  success: true;
-  data: T;
-  message: string;
-  request_id: string;
-}
-
-interface PaginationContract {
-  limit: number;
-  offset: number;
-  total: number;
-  has_more: boolean;
-}
-
-type StockCandidateContractResponse = ApiEnvelope<{
-    as_of: string;
-    items: StockCandidateContractItem[];
-    pagination: PaginationContract;
-  }>;
-
-interface StockCandidateContractItem {
-  ticker: string;
-  name: string;
-  market: string;
-  sector: string | null;
-  score: {
-    total: number;
-    grade: string;
-    as_of: string;
-    version: string;
-    breakdown: {
-      momentum: number;
-      liquidity: number;
-      disclosure: number;
-      news: number;
-    };
-  };
-  price: {
-    close: number | null;
-    change_rate: number | null;
-    volume: number | null;
-    trade_date: string | null;
-  } | null;
-  evidence_summary: {
-    news_count: number;
-    disclosure_count: number;
-    latest_at: string | null;
-  };
-}
-
-type StockSearchContractResponse = ApiEnvelope<{
-    items: Array<{
-      ticker: string;
-      name: string;
-      market: string;
-      sector: string | null;
-      corp_code: string | null;
-      match_reason: string;
-    }>;
-    pagination: PaginationContract;
-  }>;
-
-type StockDetailContractResponse = ApiEnvelope<{
-    stock: {
-      ticker: string;
-      name: string;
-      market: string;
-      sector: string | null;
-      corp_code: string | null;
-    };
-  }>;
-
-type StockEvidenceContractResponse = ApiEnvelope<{
-    ticker: string;
-    items: Array<{
-      id: string;
-      source_type: "NEWS" | "DISCLOSURE" | "SCORE" | "CHUNK";
-      title: string;
-      source_name: string;
-      url: string | null;
-      published_at: string | null;
-      snippet: string;
-      metadata: Record<string, unknown>;
-    }>;
-    pagination: PaginationContract;
-  }>;
-
-type ChatContractResponse = ApiEnvelope<{
-    session_id: string;
-    answer: string;
-    citations: Array<{
-      id: string;
-      source_type: "NEWS" | "DISCLOSURE" | "SCORE" | "CHUNK";
-      title: string;
-      url: string | null;
-      published_at: string | null;
-    }>;
-    safety: {
-      policy_action: "ALLOW" | "REDIRECT" | "BLOCK";
-      disclaimer: string;
-    };
-  }>;
-
 function toRecommendationCandidate(item: StockCandidateContractItem): RecommendationCandidate {
   const asOf = item.score.as_of;
   return {
@@ -447,12 +354,10 @@ function component(name: string, weight: number, weightedScore: number) {
   };
 }
 
-function toContractEvidenceFilter(
-  types: Array<"financial" | "news" | "disclosure" | "price">,
-) {
-  if (types.includes("news")) return "NEWS";
-  if (types.includes("disclosure")) return "DISCLOSURE";
-  if (types.includes("financial") || types.includes("price")) return "SCORE";
+function toContractEvidenceFilter(type: EvidenceFilterType) {
+  if (type === "news") return "NEWS";
+  if (type === "disclosure") return "DISCLOSURE";
+  if (type === "financial" || type === "price") return "SCORE";
   return "CHUNK";
 }
 

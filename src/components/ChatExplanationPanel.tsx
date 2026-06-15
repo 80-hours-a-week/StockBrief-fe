@@ -8,6 +8,7 @@ import { evidenceTypeLabel, formatDate } from "@/lib/format";
 import type { ChatResponse } from "@/types/api";
 
 const DEFAULT_MESSAGE = "왜 추천됐나요?";
+const MESSAGE_MAX_LENGTH = 1000;
 
 export function ChatExplanationPanel({ ticker }: { ticker: string }) {
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
@@ -67,10 +68,14 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
       </div>
 
       <label className="mt-4 block">
-        <span className="text-xs font-medium text-muted">질문</span>
+        <span className="flex items-center justify-between gap-3 text-xs font-medium text-muted">
+          <span>질문</span>
+          <span>{message.length}/{MESSAGE_MAX_LENGTH}</span>
+        </span>
         <textarea
           value={message}
           onChange={(event) => setMessage(event.target.value)}
+          maxLength={MESSAGE_MAX_LENGTH}
           rows={2}
           className="mt-1 w-full resize-none rounded-md border border-line bg-field px-3 py-2 text-sm text-ink outline-none transition focus:bg-white focus:shadow-focus"
         />
@@ -81,6 +86,7 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
       {response ? (
         <div className="mt-5 space-y-4">
           <div className="text-xs font-medium text-muted">policy: {response.policy_status}</div>
+          {/* React escapes rendered text here; keep agent answers as text, not HTML. */}
           <p className="whitespace-pre-line text-sm leading-6 text-ink">{response.answer}</p>
           {response.session_id ? (
             <p className="text-xs text-muted">session: {response.session_id}</p>

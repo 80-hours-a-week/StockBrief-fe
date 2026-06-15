@@ -55,11 +55,14 @@ export function clearAuthSession(): void {
 
 export function subscribeAuthSession(callback: () => void): () => void {
   if (typeof window === "undefined") return () => undefined;
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === AUTH_SESSION_KEY) callback();
+  };
   window.addEventListener(AUTH_CHANGED_EVENT, callback);
-  window.addEventListener("storage", callback);
+  window.addEventListener("storage", handleStorage);
   return () => {
     window.removeEventListener(AUTH_CHANGED_EVENT, callback);
-    window.removeEventListener("storage", callback);
+    window.removeEventListener("storage", handleStorage);
   };
 }
 

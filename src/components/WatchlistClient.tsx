@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { deleteServerWatchlistItem, getMe, getServerWatchlist, patchServerWatchlistItem } from "@/lib/api";
 import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import { setServerWatchlistSnapshot } from "@/lib/server-watchlist-store";
 import {
   readWatchlist,
   removeWatchlistItem,
@@ -27,6 +28,7 @@ export function WatchlistClient() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const memoRollbackRef = useRef(new Map<string, string>());
 
   useEffect(() => {
     const sync = () => {
@@ -58,6 +60,7 @@ export function WatchlistClient() {
         const imported = await importLocalWatchlistOnce(token, me);
         if (cancelled) return;
         setServerItems(imported.items);
+        setServerWatchlistSnapshot(token, { items: imported.items, count: imported.items.length });
         if (imported.importedCount > 0) {
           setSyncMessage(`로컬 관심종목 ${imported.importedCount}개를 서버에 병합했습니다.`);
         } else {
@@ -82,6 +85,7 @@ export function WatchlistClient() {
       try {
         const next = await getServerWatchlist(accessToken);
         setServerItems(next.items);
+        setServerWatchlistSnapshot(accessToken, next);
       } catch {
         setError("서버 관심종목을 새로고침하지 못했습니다.");
       }
@@ -95,6 +99,7 @@ export function WatchlistClient() {
         await deleteServerWatchlistItem(accessToken, ticker);
         const next = await getServerWatchlist(accessToken);
         setServerItems(next.items);
+        setServerWatchlistSnapshot(accessToken, next);
         notifyServerWatchlistChanged();
       } catch {
         setError("서버 관심종목 삭제에 실패했습니다.");
@@ -115,13 +120,26 @@ export function WatchlistClient() {
     setItems(updateWatchlistMemo(ticker, memo));
   }
 
+  function rememberServerMemo(ticker: string, memo: string) {
+    if (!memoRollbackRef.current.has(ticker)) {
+      memoRollbackRef.current.set(ticker, memo);
+    }
+  }
+
   async function saveServerMemo(ticker: string, memo: string) {
     if (!accessToken) return;
+    const previousMemo = memoRollbackRef.current.get(ticker) ?? "";
     try {
       await patchServerWatchlistItem(accessToken, ticker, { memo: memo.trim() || null });
+      memoRollbackRef.current.set(ticker, memo);
       notifyServerWatchlistChanged();
     } catch {
+      setServerItems((current) =>
+        current.map((item) => (item.ticker === ticker ? { ...item, memo: previousMemo || null } : item)),
+      );
       setError("서버 관심종목 메모 저장에 실패했습니다.");
+    } finally {
+      memoRollbackRef.current.delete(ticker);
     }
   }
 
@@ -193,6 +211,7 @@ export function WatchlistClient() {
                   <span className="text-xs font-medium text-muted">memo</span>
                   <textarea
                     value={item.memo ?? ""}
+                    onFocus={() => rememberServerMemo(item.ticker, item.memo ?? "")}
                     onChange={(event) => updateMemo(item.ticker, event.target.value)}
                     onBlur={(event) => void saveServerMemo(item.ticker, event.target.value)}
                     rows={2}

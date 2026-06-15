@@ -2,15 +2,21 @@
 
 import { useEffect, useState } from "react";
 
-import { addServerWatchlistItem, deleteServerWatchlistItem, getServerWatchlist } from "@/lib/api";
+import { addServerWatchlistItem, deleteServerWatchlistItem } from "@/lib/api";
 import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import {
+  getServerWatchlistSnapshot,
+  isTickerInServerWatchlist,
+  refreshServerWatchlistSnapshot,
+  subscribeServerWatchlistSnapshot,
+} from "@/lib/server-watchlist-store";
 import {
   isTickerSaved,
   removeWatchlistItem,
   saveWatchlistItem,
   subscribeWatchlist,
 } from "@/lib/watchlist-storage";
-import { notifyServerWatchlistChanged } from "@/lib/watchlist-sync";
+import { notifyServerWatchlistChanged, subscribeServerWatchlistChanged } from "@/lib/watchlist-sync";
 import type { WatchlistInput } from "@/types/watchlist";
 
 export function WatchlistToggle({
@@ -49,8 +55,8 @@ export function WatchlistToggle({
     async function loadServerState() {
       setReady(false);
       try {
-        const response = await getServerWatchlist(token);
-        if (!cancelled) setSaved(response.items.some((serverItem) => serverItem.ticker === item.ticker));
+        await getServerWatchlistSnapshot(token);
+        if (!cancelled) setSaved(isTickerInServerWatchlist(item.ticker));
       } catch {
         if (!cancelled) setSaved(false);
       } finally {
@@ -61,6 +67,19 @@ export function WatchlistToggle({
     void loadServerState();
     return () => {
       cancelled = true;
+    };
+  }, [accessToken, item.ticker]);
+
+  useEffect(() => {
+    if (!accessToken) return () => undefined;
+    const sync = () => setSaved(isTickerInServerWatchlist(item.ticker));
+    const unsubscribeSnapshot = subscribeServerWatchlistSnapshot(sync);
+    const unsubscribeChanged = subscribeServerWatchlistChanged(() => {
+      void refreshServerWatchlistSnapshot(accessToken);
+    });
+    return () => {
+      unsubscribeSnapshot();
+      unsubscribeChanged();
     };
   }, [accessToken, item.ticker]);
 
@@ -75,6 +94,7 @@ export function WatchlistToggle({
           await addServerWatchlistItem(accessToken, item);
           setSaved(true);
         }
+        await refreshServerWatchlistSnapshot(accessToken);
         notifyServerWatchlistChanged();
       } finally {
         setReady(true);
