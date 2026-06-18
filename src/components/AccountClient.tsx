@@ -6,7 +6,7 @@ import { getMe, getUserChatSessions, getUserPreferences, patchMe, putUserPrefere
 import {
   clearAuthSession,
   isCognitoConfigured,
-  readAuthSession,
+  readApiAuthToken,
   startCognitoAuth,
   subscribeAuthSession,
 } from "@/lib/cognito-auth";
@@ -23,7 +23,7 @@ export function AccountClient() {
   const configured = isCognitoConfigured();
 
   useEffect(() => {
-    const sync = () => setAccessToken(readAuthSession()?.accessToken ?? null);
+    const sync = () => setAccessToken(readApiAuthToken());
     sync();
     return subscribeAuthSession(sync);
   }, []);

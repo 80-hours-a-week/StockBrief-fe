@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { addServerWatchlistItem, deleteServerWatchlistItem } from "@/lib/api";
-import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import { readApiAuthToken, readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
 import {
   getServerWatchlistSnapshot,
   readServerWatchlistSnapshot,
@@ -52,7 +52,7 @@ export function WatchlistToggle({
   }, [item.ticker]);
 
   useEffect(() => {
-    const sync = () => setAccessToken(readAuthSession()?.accessToken ?? null);
+    const sync = () => setAccessToken(readApiAuthToken());
     sync();
     return subscribeAuthSession(sync);
   }, []);
