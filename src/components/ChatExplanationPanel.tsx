@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { postAuthenticatedChat, postChat } from "@/lib/api";
-import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import { readApiAuthToken, subscribeAuthSession } from "@/lib/cognito-auth";
 import { evidenceTypeLabel, formatDate } from "@/lib/format";
 import type { ChatResponse } from "@/types/api";
 
@@ -19,7 +19,7 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    const sync = () => setAccessToken(readAuthSession()?.accessToken ?? null);
+    const sync = () => setAccessToken(readApiAuthToken());
     sync();
     return subscribeAuthSession(sync);
   }, []);

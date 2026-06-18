@@ -47,6 +47,11 @@ export function readAuthSession(): AuthSession | null {
   }
 }
 
+export function readApiAuthToken(): string | null {
+  const session = readAuthSession();
+  return session?.idToken ?? session?.accessToken ?? null;
+}
+
 export function clearAuthSession(): void {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(AUTH_SESSION_KEY);

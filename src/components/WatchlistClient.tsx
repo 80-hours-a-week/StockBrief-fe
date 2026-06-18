@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { deleteServerWatchlistItem, getMe, patchServerWatchlistItem } from "@/lib/api";
-import { readAuthSession, subscribeAuthSession } from "@/lib/cognito-auth";
+import { readApiAuthToken, subscribeAuthSession } from "@/lib/cognito-auth";
 import {
   importLocalWatchlistOnce,
   readServerWatchlistSnapshot,
@@ -46,7 +46,7 @@ export function WatchlistClient() {
   }, []);
 
   useEffect(() => {
-    const sync = () => setAccessToken(readAuthSession()?.accessToken ?? null);
+    const sync = () => setAccessToken(readApiAuthToken());
     sync();
     return subscribeAuthSession(sync);
   }, []);

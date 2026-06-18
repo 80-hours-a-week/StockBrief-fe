@@ -32,3 +32,4 @@ coverage/
 tmp/
 temp/
 .cache/
+.playwright-cli/
