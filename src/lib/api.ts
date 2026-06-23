@@ -373,7 +373,8 @@ function fromContractSourceType(
 }
 
 function toChatResponse(response: ChatContractResponse): ChatResponse {
-  const safetyDisclaimer = (response.data.safety.disclaimer ?? "").trim();
+  const safety = response.data.safety;
+  const safetyDisclaimer = (safety?.disclaimer ?? "").trim();
   return {
     session_id: response.data.session_id,
     message_id: null,
@@ -386,14 +387,14 @@ function toChatResponse(response: ChatContractResponse): ChatResponse {
       source_url: citation.url,
       as_of_date: citation.published_at,
     })),
-    policy_status: fromPolicyAction(response.data.safety.policy_action),
+    policy_status: fromPolicyAction(safety?.policy_action),
     disclaimer: safetyDisclaimer || DEFAULT_CHAT_SAFETY_DISCLAIMER,
     used_evidence_ids: response.data.citations.map((citation) => citation.id),
   };
 }
 
-function fromPolicyAction(action: "ALLOW" | "REDIRECT" | "BLOCK") {
+function fromPolicyAction(action?: "ALLOW" | "REDIRECT" | "BLOCK") {
   if (action === "ALLOW") return "allowed";
-  if (action === "REDIRECT") return "redirected";
-  return "blocked";
+  if (action === "BLOCK") return "blocked";
+  return "redirected";
 }

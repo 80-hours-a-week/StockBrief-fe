@@ -2,15 +2,33 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { postChat } from "./api";
 
-const DEFAULT_CHAT_SAFETY_DISCLAIMER =
-  "공개 데이터 기반 설명이며 투자 조언이 아닙니다. 원문 확인이 필요합니다.";
-
 describe("postChat", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("falls back to a safety disclaimer when the chat contract omits it", async () => {
+  it("falls back to a safety disclaimer when the chat contract omits safety", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          chatContractResponse({
+            safety: undefined,
+          }),
+        ),
+      ),
+    );
+
+    const response = await postChat({
+      ticker: "005930",
+      message: "왜 추천됐나요?",
+    });
+
+    expect(response.policy_status).toBe("redirected");
+    expect(response.disclaimer).toContain("투자 조언");
+  });
+
+  it("falls back to a safety disclaimer when the chat contract omits disclaimer", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(chatContractResponse())));
 
     const response = await postChat({
@@ -18,7 +36,8 @@ describe("postChat", () => {
       message: "왜 추천됐나요?",
     });
 
-    expect(response.disclaimer).toBe(DEFAULT_CHAT_SAFETY_DISCLAIMER);
+    expect(response.policy_status).toBe("allowed");
+    expect(response.disclaimer).toContain("투자 조언");
   });
 
   it("falls back to a safety disclaimer when the chat contract sends a blank disclaimer", async () => {
@@ -41,7 +60,8 @@ describe("postChat", () => {
       message: "왜 추천됐나요?",
     });
 
-    expect(response.disclaimer).toBe(DEFAULT_CHAT_SAFETY_DISCLAIMER);
+    expect(response.policy_status).toBe("allowed");
+    expect(response.disclaimer).toContain("투자 조언");
   });
 });
 
