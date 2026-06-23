@@ -33,6 +33,7 @@ describe("ChatExplanationPanel", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("renders a public explanation with evidence and safety disclaimer", async () => {
@@ -121,14 +122,34 @@ describe("ChatExplanationPanel", () => {
     expect(mockedPostChat).not.toHaveBeenCalled();
   });
 
-  it("shows a retryable message when the chat API fails", async () => {
-    mockedPostChat.mockRejectedValue(new Error("API unavailable"));
+  it("shows a retryable message and logs safe context when the chat API fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const apiError = Object.assign(new Error("API unavailable"), {
+      name: "ApiError",
+      status: 503,
+    });
+    mockedPostChat.mockRejectedValue(apiError);
 
     render(<ChatExplanationPanel ticker="005930" />);
 
+    fireEvent.change(screen.getByLabelText(/질문/), {
+      target: { value: "민감한 질문 전문은 로그에 남기지 않는다" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "왜 추천됐나요?" }));
 
     expect(await screen.findByText("설명을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).not.toBeNull();
+    expect(consoleError).toHaveBeenCalledWith("Chat explanation request failed.", {
+      ticker: "005930",
+      authenticated: false,
+      hasSession: false,
+      error: {
+        name: "ApiError",
+        status: 503,
+      },
+    });
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain(
+      "민감한 질문 전문은 로그에 남기지 않는다",
+    );
   });
 });
 
