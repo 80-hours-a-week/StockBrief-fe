@@ -151,6 +151,38 @@ describe("ChatExplanationPanel", () => {
       "민감한 질문 전문은 로그에 남기지 않는다",
     );
   });
+
+  it("logs status from non-Error chat API failures without sensitive fields", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockedPostChat.mockRejectedValue({
+      name: "ApiError",
+      status: 502,
+      token: "secret-token",
+      message: "provider body",
+    });
+
+    render(<ChatExplanationPanel ticker="005930" />);
+
+    fireEvent.change(screen.getByLabelText(/질문/), {
+      target: { value: "로그에 남기면 안 되는 질문" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "왜 추천됐나요?" }));
+
+    expect(await screen.findByText("설명을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.")).not.toBeNull();
+    expect(consoleError).toHaveBeenCalledWith("Chat explanation request failed.", {
+      ticker: "005930",
+      authenticated: false,
+      hasSession: false,
+      error: {
+        name: "ApiError",
+        status: 502,
+      },
+    });
+    const serializedLogs = JSON.stringify(consoleError.mock.calls);
+    expect(serializedLogs).not.toContain("secret-token");
+    expect(serializedLogs).not.toContain("provider body");
+    expect(serializedLogs).not.toContain("로그에 남기면 안 되는 질문");
+  });
 });
 
 function chatResponse(overrides: Partial<ChatResponse> = {}): ChatResponse {

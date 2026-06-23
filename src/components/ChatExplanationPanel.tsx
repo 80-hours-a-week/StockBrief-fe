@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { postAuthenticatedChat, postChat } from "@/lib/api";
+import { logClientError } from "@/lib/client-telemetry";
 import { readApiAuthToken, subscribeAuthSession } from "@/lib/cognito-auth";
 import { evidenceTypeLabel, formatDate } from "@/lib/format";
 import type { ChatResponse } from "@/types/api";
@@ -33,24 +34,7 @@ function isSafeExternalUrl(value: string | null): value is string {
 }
 
 function logChatFailure(error: unknown, context: ChatFailureContext) {
-  const errorRecord =
-    error instanceof Error
-      ? {
-          name: error.name,
-          status: typeof errorStatus(error) === "number" ? errorStatus(error) : undefined,
-        }
-      : {
-          name: "UnknownError",
-        };
-
-  console.error("Chat explanation request failed.", {
-    ...context,
-    error: errorRecord,
-  });
-}
-
-function errorStatus(error: Error): unknown {
-  return (error as { status?: unknown }).status;
+  logClientError("Chat explanation request failed.", error, context);
 }
 
 export function ChatExplanationPanel({ ticker }: { ticker: string }) {
