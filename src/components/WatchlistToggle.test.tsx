@@ -70,6 +70,33 @@ describe("WatchlistToggle server optimistic updates", () => {
     });
   });
 
+  it("shows feedback when the initial server snapshot cannot be loaded", async () => {
+    mockedGetServerWatchlist.mockRejectedValue(new Error("snapshot failed"));
+
+    render(<WatchlistToggle item={watchlistInput("AAPL")} />);
+
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
+    expect(await readyButton("관심종목 저장")).not.toBeNull();
+  });
+
+  it("clears stale feedback when the ticker changes", async () => {
+    mockedGetServerWatchlist
+      .mockRejectedValueOnce(new Error("snapshot failed"))
+      .mockResolvedValue(watchlistResponse([]));
+
+    const { rerender } = render(<WatchlistToggle item={watchlistInput("AAPL")} />);
+
+    expect(await screen.findByRole("status")).not.toBeNull();
+
+    rerender(<WatchlistToggle item={watchlistInput("MSFT")} />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+  });
+
   it("rolls back only the added ticker when the add request fails", async () => {
     setServerWatchlistSnapshot(accessToken, watchlistResponse([]));
     mockedAddServerWatchlistItem.mockRejectedValue(new Error("add failed"));

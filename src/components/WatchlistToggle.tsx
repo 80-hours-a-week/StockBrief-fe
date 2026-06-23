@@ -20,6 +20,12 @@ import {
 import type { ServerWatchlistResponse } from "@/types/api";
 import type { WatchlistInput } from "@/types/watchlist";
 
+interface FeedbackState {
+  accessToken: string;
+  message: string;
+  ticker: string;
+}
+
 export function WatchlistToggle({
   item,
   variant = "default",
@@ -30,7 +36,7 @@ export function WatchlistToggle({
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState | null>(null);
   const serverSnapshot = useSyncExternalStore(
     subscribeServerWatchlistSnapshot,
     () => readServerWatchlistSnapshot(accessToken),
@@ -67,7 +73,13 @@ export function WatchlistToggle({
       try {
         await getServerWatchlistSnapshot(token);
       } catch {
-        // Keep the previous snapshot if refresh fails; the button remains usable for retry.
+        if (!cancelled) {
+          setFeedback({
+            accessToken: token,
+            message: "서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            ticker: item.ticker,
+          });
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -91,7 +103,11 @@ export function WatchlistToggle({
           baselineSnapshot = await refreshServerWatchlistSnapshot(accessToken);
         } catch (error) {
           console.error("서버 관심종목 상태를 불러오지 못했습니다.", error);
-          setFeedback("서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          setFeedback({
+            accessToken,
+            message: "서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+            ticker: item.ticker,
+          });
           setReady(true);
           return;
         }
@@ -111,7 +127,11 @@ export function WatchlistToggle({
       } catch (error) {
         rollbackServerWatchlistToggle(accessToken, item.ticker, baselineSnapshot);
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
-        setFeedback("관심종목 변경을 저장하지 못했습니다. 다시 시도해 주세요.");
+        setFeedback({
+          accessToken,
+          message: "관심종목 변경을 저장하지 못했습니다. 다시 시도해 주세요.",
+          ticker: item.ticker,
+        });
       } finally {
         setReady(true);
       }
@@ -133,6 +153,10 @@ export function WatchlistToggle({
   const toneClass = currentSaved
     ? "border-accent bg-accent text-white hover:bg-ink"
     : "border-line bg-white text-ink hover:border-accent hover:text-accent";
+  const visibleFeedback =
+    feedback?.accessToken === accessToken && feedback.ticker === item.ticker
+      ? feedback.message
+      : null;
 
   return (
     <span className="inline-flex flex-col items-start gap-1">
@@ -145,9 +169,9 @@ export function WatchlistToggle({
       >
         {ready ? label : "상태 확인"}
       </button>
-      {feedback ? (
+      {visibleFeedback ? (
         <span role="status" className="max-w-52 text-xs font-medium leading-5 text-caution">
-          {feedback}
+          {visibleFeedback}
         </span>
       ) : null}
     </span>
