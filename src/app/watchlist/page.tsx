@@ -5,9 +5,9 @@ export default function WatchlistPage() {
     <div className="py-8">
       <section className="mx-auto max-w-4xl px-5 pb-6">
         <p className="text-sm font-semibold text-accent">관심종목</p>
-        <h1 className="mt-3 text-3xl font-semibold text-ink">브라우저에 저장된 종목</h1>
+        <h1 className="mt-3 text-3xl font-semibold text-ink">저장한 검토 후보</h1>
         <p className="mt-3 text-sm leading-6 text-muted">
-          MVP에서는 관심종목을 localStorage에 저장합니다.
+          게스트는 이 브라우저에 저장하고, 로그인 후에는 서버 관심종목과 동기화합니다.
         </p>
       </section>
       <WatchlistClient />

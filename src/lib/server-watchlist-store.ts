@@ -18,6 +18,7 @@ export interface WatchlistSyncResult {
   importedCount: number;
   skippedExistingCount: number;
   items: ServerWatchlistItem[];
+  alreadySynced: boolean;
 }
 
 interface SyncState {
@@ -112,6 +113,15 @@ export async function importLocalWatchlistOnce(
   me: MeResponse,
 ): Promise<WatchlistSyncResult> {
   const server = await getServerWatchlistSnapshot(accessToken);
+  if (hasSynced(me.cognito_sub)) {
+    return {
+      importedCount: 0,
+      skippedExistingCount: 0,
+      items: server.items,
+      alreadySynced: true,
+    };
+  }
+
   const serverTickers = new Set(server.items.map((item) => item.ticker));
   const localItems: WatchlistInput[] = readWatchlist()
     .filter((item) => !serverTickers.has(item.ticker))
@@ -141,6 +151,7 @@ export async function importLocalWatchlistOnce(
     importedCount: imported.imported_count,
     skippedExistingCount: imported.skipped_existing_count,
     items: imported.items,
+    alreadySynced: false,
   };
 }
 
@@ -160,6 +171,11 @@ function markSynced(cognitoSub: string): void {
   const state = readState();
   state[cognitoSub] = { syncedAt: new Date().toISOString() };
   window.localStorage.setItem(WATCHLIST_SYNC_STATE_KEY, JSON.stringify(state));
+}
+
+function hasSynced(cognitoSub: string): boolean {
+  if (!cognitoSub) return false;
+  return Boolean(readState()[cognitoSub]?.syncedAt);
 }
 
 function readState(): SyncState {
