@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { postAuthenticatedChat, postChat } from "@/lib/api";
+import { logClientError } from "@/lib/client-telemetry";
 import { readApiAuthToken, subscribeAuthSession } from "@/lib/cognito-auth";
 import { evidenceTypeLabel, formatDate } from "@/lib/format";
 import type { ChatResponse } from "@/types/api";
@@ -13,6 +14,11 @@ const policyStatusCopy: Record<ChatResponse["policy_status"], string> = {
   allowed: "근거 기반 설명",
   redirected: "안전 안내",
   blocked: "응답 제한",
+};
+type ChatFailureContext = {
+  ticker: string;
+  authenticated: boolean;
+  hasSession: boolean;
 };
 
 function isSafeExternalUrl(value: string | null): value is string {
@@ -25,6 +31,10 @@ function isSafeExternalUrl(value: string | null): value is string {
   } catch {
     return false;
   }
+}
+
+function logChatFailure(error: unknown, context: ChatFailureContext) {
+  logClientError("Chat explanation request failed.", error, context);
 }
 
 export function ChatExplanationPanel({ ticker }: { ticker: string }) {
@@ -58,7 +68,12 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
       if (next.session_id) {
         setSessionId(next.session_id);
       }
-    } catch {
+    } catch (caughtError) {
+      logChatFailure(caughtError, {
+        ticker,
+        authenticated: Boolean(accessToken),
+        hasSession: Boolean(sessionId),
+      });
       setError("설명을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setLoading(false);
