@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { postAuthenticatedChat, postChat } from "./api";
 
-describe("postChat", () => {
+describe("chat API adapters", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
