@@ -63,6 +63,44 @@ describe("postChat", () => {
     expect(response.policy_status).toBe("allowed");
     expect(response.disclaimer).toContain("투자 조언");
   });
+
+  it("maps non-null citation published_at values to chat citation dates", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          chatContractResponse({
+            citations: [
+              {
+                id: "ev_005930_news",
+                source_type: "NEWS",
+                title: "삼성전자 뉴스",
+                url: "https://example.com/news",
+                published_at: "2026-06-23T09:30:00+09:00",
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const response = await postChat({
+      ticker: "005930",
+      message: "왜 추천됐나요?",
+    });
+
+    expect(response.citations).toEqual([
+      {
+        evidence_id: "ev_005930_news",
+        type: "news",
+        title: "삼성전자 뉴스",
+        source_name: "NEWS",
+        source_url: "https://example.com/news",
+        as_of_date: "2026-06-23T09:30:00+09:00",
+      },
+    ]);
+    expect(response.used_evidence_ids).toEqual(["ev_005930_news"]);
+  });
 });
 
 function jsonResponse(body: unknown): Response {
