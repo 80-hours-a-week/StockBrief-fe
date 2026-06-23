@@ -30,6 +30,7 @@ export function WatchlistToggle({
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
   const serverSnapshot = useSyncExternalStore(
     subscribeServerWatchlistSnapshot,
     () => readServerWatchlistSnapshot(accessToken),
@@ -79,6 +80,8 @@ export function WatchlistToggle({
   }, [accessToken, item.ticker]);
 
   async function toggle() {
+    setFeedback(null);
+
     if (accessToken) {
       setReady(false);
 
@@ -88,6 +91,7 @@ export function WatchlistToggle({
           baselineSnapshot = await refreshServerWatchlistSnapshot(accessToken);
         } catch (error) {
           console.error("서버 관심종목 상태를 불러오지 못했습니다.", error);
+          setFeedback("서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.");
           setReady(true);
           return;
         }
@@ -107,6 +111,7 @@ export function WatchlistToggle({
       } catch (error) {
         rollbackServerWatchlistToggle(accessToken, item.ticker, baselineSnapshot);
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
+        setFeedback("관심종목 변경을 저장하지 못했습니다. 다시 시도해 주세요.");
       } finally {
         setReady(true);
       }
@@ -130,15 +135,22 @@ export function WatchlistToggle({
     : "border-line bg-white text-ink hover:border-accent hover:text-accent";
 
   return (
-    <button
-      type="button"
-      aria-pressed={currentSaved}
-      disabled={!ready}
-      onClick={() => void toggle()}
-      className={`${baseClass} ${sizeClass} ${toneClass}`}
-    >
-      {ready ? label : "상태 확인"}
-    </button>
+    <span className="inline-flex flex-col items-start gap-1">
+      <button
+        type="button"
+        aria-pressed={currentSaved}
+        disabled={!ready}
+        onClick={() => void toggle()}
+        className={`${baseClass} ${sizeClass} ${toneClass}`}
+      >
+        {ready ? label : "상태 확인"}
+      </button>
+      {feedback ? (
+        <span role="status" className="max-w-52 text-xs font-medium leading-5 text-caution">
+          {feedback}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
@@ -206,7 +218,7 @@ function rollbackServerWatchlistToggle(
           count: nextItems.length,
         };
       }
-      const nextItems = [previousItem, ...current.items];
+      const nextItems = restoreSnapshotItem(current.items, previousItem, previousSnapshot.items);
       return {
         items: nextItems,
         count: nextItems.length,
@@ -219,4 +231,44 @@ function rollbackServerWatchlistToggle(
       count: nextItems.length,
     };
   });
+}
+
+function restoreSnapshotItem(
+  currentItems: ServerWatchlistResponse["items"],
+  previousItem: ServerWatchlistResponse["items"][number],
+  previousItems: ServerWatchlistResponse["items"],
+): ServerWatchlistResponse["items"] {
+  const previousIndex = previousItems.findIndex((item) => item.ticker === previousItem.ticker);
+  if (previousIndex < 0) {
+    return [previousItem, ...currentItems];
+  }
+
+  for (let index = previousIndex - 1; index >= 0; index -= 1) {
+    const anchorIndex = currentItems.findIndex((item) => item.ticker === previousItems[index].ticker);
+    if (anchorIndex >= 0) {
+      return [
+        ...currentItems.slice(0, anchorIndex + 1),
+        previousItem,
+        ...currentItems.slice(anchorIndex + 1),
+      ];
+    }
+  }
+
+  for (let index = previousIndex + 1; index < previousItems.length; index += 1) {
+    const anchorIndex = currentItems.findIndex((item) => item.ticker === previousItems[index].ticker);
+    if (anchorIndex >= 0) {
+      return [
+        ...currentItems.slice(0, anchorIndex),
+        previousItem,
+        ...currentItems.slice(anchorIndex),
+      ];
+    }
+  }
+
+  const insertionIndex = Math.min(previousIndex, currentItems.length);
+  return [
+    ...currentItems.slice(0, insertionIndex),
+    previousItem,
+    ...currentItems.slice(insertionIndex),
+  ];
 }

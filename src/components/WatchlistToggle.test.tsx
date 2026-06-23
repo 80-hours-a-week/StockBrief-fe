@@ -85,6 +85,9 @@ describe("WatchlistToggle server optimistic updates", () => {
     });
     expect(readServerWatchlistSnapshot(accessToken)?.count).toBe(0);
     expect(button.textContent).toBe("관심종목 저장");
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "관심종목 변경을 저장하지 못했습니다. 다시 시도해 주세요.",
+    );
     expect(consoleError).toHaveBeenCalled();
 
     consoleError.mockRestore();
@@ -113,21 +116,27 @@ describe("WatchlistToggle server optimistic updates", () => {
     });
   });
 
-  it("restores the deleted ticker when the delete request fails", async () => {
-    setServerWatchlistSnapshot(accessToken, watchlistResponse([serverItem("AAPL")]));
+  it("restores the deleted ticker at its previous index when the delete request fails", async () => {
+    setServerWatchlistSnapshot(
+      accessToken,
+      watchlistResponse([serverItem("AAPL"), serverItem("MSFT"), serverItem("GOOGL")]),
+    );
     mockedDeleteServerWatchlistItem.mockRejectedValue(new Error("delete failed"));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    render(<WatchlistToggle item={watchlistInput("AAPL")} />);
+    render(<WatchlistToggle item={watchlistInput("MSFT")} />);
     const button = await readyButton("관심종목 해제");
 
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(tickers()).toEqual(["AAPL"]);
+      expect(tickers()).toEqual(["AAPL", "MSFT", "GOOGL"]);
     });
-    expect(readServerWatchlistSnapshot(accessToken)?.count).toBe(1);
+    expect(readServerWatchlistSnapshot(accessToken)?.count).toBe(3);
     expect(button.textContent).toBe("관심종목 해제");
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "관심종목 변경을 저장하지 못했습니다. 다시 시도해 주세요.",
+    );
     expect(consoleError).toHaveBeenCalled();
 
     consoleError.mockRestore();
@@ -187,6 +196,9 @@ describe("WatchlistToggle server optimistic updates", () => {
     expect(mockedDeleteServerWatchlistItem).not.toHaveBeenCalled();
     expect(readServerWatchlistSnapshot(accessToken)).toBeNull();
     expect(button.textContent).toBe("관심종목 저장");
+    expect((await screen.findByRole("status")).textContent).toBe(
+      "서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    );
     expect(consoleError).toHaveBeenCalled();
 
     consoleError.mockRestore();
