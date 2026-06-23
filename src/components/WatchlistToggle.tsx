@@ -21,9 +21,14 @@ import type { ServerWatchlistResponse } from "@/types/api";
 import type { WatchlistInput } from "@/types/watchlist";
 
 interface FeedbackState {
-  accessToken: string;
+  authSessionVersion: number;
   message: string;
   ticker: string;
+}
+
+interface AuthState {
+  accessToken: string | null;
+  version: number;
 }
 
 export function WatchlistToggle({
@@ -35,8 +40,10 @@ export function WatchlistToggle({
 }) {
   const [saved, setSaved] = useState(false);
   const [ready, setReady] = useState(false);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<AuthState>({ accessToken: null, version: 0 });
   const [feedback, setFeedback] = useState<FeedbackState | null>(null);
+  const accessToken = authState.accessToken;
+  const authSessionVersion = authState.version;
   const serverSnapshot = useSyncExternalStore(
     subscribeServerWatchlistSnapshot,
     () => readServerWatchlistSnapshot(accessToken),
@@ -59,7 +66,14 @@ export function WatchlistToggle({
   }, [item.ticker]);
 
   useEffect(() => {
-    const sync = () => setAccessToken(readApiAuthToken());
+    const sync = () => {
+      const nextAccessToken = readApiAuthToken();
+      setAuthState((current) =>
+        current.accessToken === nextAccessToken
+          ? current
+          : { accessToken: nextAccessToken, version: current.version + 1 },
+      );
+    };
     sync();
     return subscribeAuthSession(sync);
   }, []);
@@ -75,7 +89,7 @@ export function WatchlistToggle({
       } catch {
         if (!cancelled) {
           setFeedback({
-            accessToken: token,
+            authSessionVersion,
             message: "서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
             ticker: item.ticker,
           });
@@ -89,7 +103,7 @@ export function WatchlistToggle({
     return () => {
       cancelled = true;
     };
-  }, [accessToken, item.ticker]);
+  }, [accessToken, authSessionVersion, item.ticker]);
 
   async function toggle() {
     setFeedback(null);
@@ -104,7 +118,7 @@ export function WatchlistToggle({
         } catch (error) {
           console.error("서버 관심종목 상태를 불러오지 못했습니다.", error);
           setFeedback({
-            accessToken,
+            authSessionVersion,
             message: "서버 관심종목 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.",
             ticker: item.ticker,
           });
@@ -128,7 +142,7 @@ export function WatchlistToggle({
         rollbackServerWatchlistToggle(accessToken, item.ticker, baselineSnapshot);
         console.error("서버 관심종목 상태 갱신에 실패했습니다.", error);
         setFeedback({
-          accessToken,
+          authSessionVersion,
           message: "관심종목 변경을 저장하지 못했습니다. 다시 시도해 주세요.",
           ticker: item.ticker,
         });
@@ -154,7 +168,7 @@ export function WatchlistToggle({
     ? "border-accent bg-accent text-white hover:bg-ink"
     : "border-line bg-white text-ink hover:border-accent hover:text-accent";
   const visibleFeedback =
-    feedback?.accessToken === accessToken && feedback.ticker === item.ticker
+    feedback?.authSessionVersion === authSessionVersion && feedback.ticker === item.ticker
       ? feedback.message
       : null;
 

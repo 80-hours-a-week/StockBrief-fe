@@ -97,6 +97,29 @@ describe("WatchlistToggle server optimistic updates", () => {
     });
   });
 
+  it("clears stale feedback when the auth session changes", async () => {
+    mockedGetServerWatchlist
+      .mockRejectedValueOnce(new Error("snapshot failed"))
+      .mockResolvedValue(watchlistResponse([]));
+
+    render(<WatchlistToggle item={watchlistInput("AAPL")} />);
+
+    expect(await screen.findByRole("status")).not.toBeNull();
+
+    window.sessionStorage.setItem(
+      "stockbrief_auth_session_v1",
+      JSON.stringify({
+        accessToken: "rotated-access-token",
+        expiresAt: Date.now() + 60_000,
+      }),
+    );
+    window.dispatchEvent(new CustomEvent("stockbrief_auth_changed"));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+  });
+
   it("rolls back only the added ticker when the add request fails", async () => {
     setServerWatchlistSnapshot(accessToken, watchlistResponse([]));
     mockedAddServerWatchlistItem.mockRejectedValue(new Error("add failed"));
