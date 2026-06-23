@@ -34,8 +34,11 @@ export function AuthCallbackClient({
     const authState = state;
     let cancelled = false;
     async function complete() {
+      let callbackCompleted = false;
+
       try {
         await completeCognitoCallback(authCode, authState);
+        callbackCompleted = true;
         const token = readApiAuthToken();
         if (!token) {
           throw new Error("Missing Cognito API token after callback.");
@@ -51,7 +54,7 @@ export function AuthCallbackClient({
           setStatus("done");
         }
       } catch {
-        if (!cancelled) setStatus(readApiAuthToken() ? "sync-error" : "error");
+        if (!cancelled) setStatus(callbackCompleted ? "sync-error" : "error");
       }
     }
 

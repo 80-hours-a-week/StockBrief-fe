@@ -88,6 +88,20 @@ describe("AuthCallbackClient", () => {
       "/account",
     );
   });
+
+  it("does not classify a failed Cognito callback as a watchlist sync failure when a stale token exists", async () => {
+    mockedCompleteCognitoCallback.mockRejectedValue(new Error("callback failed"));
+    mockedReadApiAuthToken.mockReturnValue("stale-id-token");
+
+    render(<AuthCallbackClient code="auth-code" state="auth-state" />);
+
+    expect(await screen.findByText(/로그인 결과를 처리하지 못했습니다/)).not.toBeNull();
+    expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
+      "/account",
+    );
+    expect(mockedGetMe).not.toHaveBeenCalled();
+    expect(mockedImportLocalWatchlistOnce).not.toHaveBeenCalled();
+  });
 });
 
 function me(): MeResponse {
