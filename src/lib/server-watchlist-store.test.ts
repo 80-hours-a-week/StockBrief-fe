@@ -36,19 +36,8 @@ describe("importLocalWatchlistOnce", () => {
     vi.clearAllMocks();
   });
 
-  it("imports local items once per Cognito subject", async () => {
-    window.localStorage.setItem(
-      WATCHLIST_STORAGE_KEY,
-      JSON.stringify([
-        {
-          ticker: "005930",
-          name: "삼성전자",
-          market: "KOSPI",
-          sector: "반도체",
-          savedAt: "2026-06-23T00:00:00.000Z",
-        },
-      ]),
-    );
+  it("imports local items once while the local watchlist fingerprint is unchanged", async () => {
+    writeLocalWatchlist([localItem("005930", "삼성전자")]);
 
     const first = await importLocalWatchlistOnce("token-1", me("cognito-sub-1"));
     const second = await importLocalWatchlistOnce("token-1", me("cognito-sub-1"));
@@ -72,9 +61,45 @@ describe("importLocalWatchlistOnce", () => {
         sector: "반도체",
       },
     ]);
-    expect(JSON.parse(window.localStorage.getItem(WATCHLIST_SYNC_STATE_KEY) ?? "{}")).toHaveProperty(
-      "cognito-sub-1",
-    );
+    const syncState = JSON.parse(window.localStorage.getItem(WATCHLIST_SYNC_STATE_KEY) ?? "{}") as {
+      "cognito-sub-1"?: { localWatchlistFingerprint?: string };
+    };
+    expect(syncState["cognito-sub-1"]?.localWatchlistFingerprint).toBeTypeOf("string");
+  });
+
+  it("imports newly added local items for the same Cognito subject after logout", async () => {
+    mockedImportServerWatchlist
+      .mockResolvedValueOnce({
+        imported_count: 1,
+        skipped_existing_count: 0,
+        items: [serverItem("005930")],
+      })
+      .mockResolvedValueOnce({
+        imported_count: 1,
+        skipped_existing_count: 0,
+        items: [serverItem("005930"), serverItem("000660")],
+      });
+
+    writeLocalWatchlist([localItem("005930", "삼성전자")]);
+    await importLocalWatchlistOnce("token-1", me("cognito-sub-1"));
+
+    writeLocalWatchlist([localItem("005930", "삼성전자"), localItem("000660", "SK하이닉스")]);
+    const second = await importLocalWatchlistOnce("token-1", me("cognito-sub-1"));
+
+    expect(second).toMatchObject({
+      importedCount: 1,
+      skippedExistingCount: 0,
+      alreadySynced: false,
+    });
+    expect(mockedImportServerWatchlist).toHaveBeenCalledTimes(2);
+    expect(mockedImportServerWatchlist).toHaveBeenNthCalledWith(2, "token-1", [
+      {
+        ticker: "000660",
+        name: "SK하이닉스",
+        market: "KOSPI",
+        sector: "반도체",
+      },
+    ]);
   });
 });
 
@@ -91,7 +116,7 @@ function me(cognitoSub: string): MeResponse {
 function serverItem(ticker: string): ServerWatchlistItem {
   return {
     ticker,
-    name: "삼성전자",
+    name: ticker === "000660" ? "SK하이닉스" : "삼성전자",
     market: "KOSPI",
     sector: "반도체",
     memo: null,
@@ -104,4 +129,18 @@ function watchlistResponse(items: ServerWatchlistItem[]): ServerWatchlistRespons
     items,
     count: items.length,
   };
+}
+
+function localItem(ticker: string, name: string) {
+  return {
+    ticker,
+    name,
+    market: "KOSPI",
+    sector: "반도체",
+    savedAt: `2026-06-23T00:00:00.000Z-${ticker}`,
+  };
+}
+
+function writeLocalWatchlist(items: ReturnType<typeof localItem>[]): void {
+  window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(items));
 }

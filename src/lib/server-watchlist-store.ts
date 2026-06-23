@@ -3,7 +3,7 @@
 import { getServerWatchlist, importServerWatchlist } from "@/lib/api";
 import { readWatchlist } from "@/lib/watchlist-storage";
 import type { MeResponse, ServerWatchlistItem, ServerWatchlistResponse } from "@/types/api";
-import type { WatchlistInput } from "@/types/watchlist";
+import type { WatchlistInput, WatchlistItem } from "@/types/watchlist";
 
 let cachedToken: string | null = null;
 let cachedResponse: ServerWatchlistResponse | null = null;
@@ -24,6 +24,7 @@ export interface WatchlistSyncResult {
 interface SyncState {
   [cognitoSub: string]: {
     syncedAt: string;
+    localWatchlistFingerprint?: string;
   };
 }
 
@@ -113,7 +114,9 @@ export async function importLocalWatchlistOnce(
   me: MeResponse,
 ): Promise<WatchlistSyncResult> {
   const server = await getServerWatchlistSnapshot(accessToken);
-  if (hasSynced(me.cognito_sub)) {
+  const localWatchlist = readWatchlist();
+  const localFingerprint = watchlistFingerprint(localWatchlist);
+  if (hasSynced(me.cognito_sub, localFingerprint)) {
     return {
       importedCount: 0,
       skippedExistingCount: 0,
@@ -123,7 +126,7 @@ export async function importLocalWatchlistOnce(
   }
 
   const serverTickers = new Set(server.items.map((item) => item.ticker));
-  const localItems: WatchlistInput[] = readWatchlist()
+  const localItems: WatchlistInput[] = localWatchlist
     .filter((item) => !serverTickers.has(item.ticker))
     .map((item) => ({
       ticker: item.ticker,
@@ -142,7 +145,7 @@ export async function importLocalWatchlistOnce(
           items: server.items,
         };
 
-  markSynced(me.cognito_sub);
+  markSynced(me.cognito_sub, localFingerprint);
   setServerWatchlistSnapshot(accessToken, {
     items: imported.items,
     count: imported.items.length,
@@ -166,16 +169,33 @@ function emit(): void {
   listeners.forEach((listener) => listener());
 }
 
-function markSynced(cognitoSub: string): void {
+function markSynced(cognitoSub: string, localWatchlistFingerprint: string): void {
   if (typeof window === "undefined") return;
   const state = readState();
-  state[cognitoSub] = { syncedAt: new Date().toISOString() };
+  state[cognitoSub] = {
+    syncedAt: new Date().toISOString(),
+    localWatchlistFingerprint,
+  };
   window.localStorage.setItem(WATCHLIST_SYNC_STATE_KEY, JSON.stringify(state));
 }
 
-function hasSynced(cognitoSub: string): boolean {
+function hasSynced(cognitoSub: string, localWatchlistFingerprint: string): boolean {
   if (!cognitoSub) return false;
-  return Boolean(readState()[cognitoSub]?.syncedAt);
+  return readState()[cognitoSub]?.localWatchlistFingerprint === localWatchlistFingerprint;
+}
+
+function watchlistFingerprint(items: WatchlistItem[]): string {
+  const normalized = items
+    .map((item) => ({
+      ticker: item.ticker,
+      name: item.name,
+      market: item.market,
+      savedAt: item.savedAt,
+      sector: item.sector ?? null,
+      memo: item.memo ?? null,
+    }))
+    .sort((left, right) => left.ticker.localeCompare(right.ticker));
+  return JSON.stringify(normalized);
 }
 
 function readState(): SyncState {
