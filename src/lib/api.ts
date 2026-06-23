@@ -384,6 +384,7 @@ function toChatResponse(response: ChatContractResponse): ChatResponse {
       as_of_date: citation.published_at,
     })),
     policy_status: fromPolicyAction(response.data.safety.policy_action),
+    disclaimer: response.data.safety.disclaimer,
     used_evidence_ids: response.data.citations.map((citation) => citation.id),
   };
 }

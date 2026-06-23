@@ -9,6 +9,11 @@ import type { ChatResponse } from "@/types/api";
 
 const DEFAULT_MESSAGE = "왜 추천됐나요?";
 const MESSAGE_MAX_LENGTH = 1000;
+const policyStatusCopy: Record<ChatResponse["policy_status"], string> = {
+  allowed: "근거 기반 설명",
+  redirected: "안전 안내",
+  blocked: "응답 제한",
+};
 
 export function ChatExplanationPanel({ ticker }: { ticker: string }) {
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
@@ -42,7 +47,7 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
         setSessionId(next.session_id);
       }
     } catch {
-      setError("설명을 불러오지 못했습니다. API 서버 상태를 확인해 주세요.");
+      setError("설명을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setLoading(false);
     }
@@ -54,7 +59,7 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
         <div>
           <h3 className="text-base font-semibold text-ink">추천 이유 설명</h3>
           <p className="mt-1 text-sm leading-6 text-muted">
-            저장된 점수, 추천 이유, 근거, 리스크를 기반으로 설명합니다.
+            저장된 점수, 추천 이유, 근거, 리스크만 사용해 설명합니다.
           </p>
         </div>
         <button
@@ -85,17 +90,17 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
 
       {response ? (
         <div className="mt-5 space-y-4">
-          <div className="text-xs font-medium text-muted">policy: {response.policy_status}</div>
+          <div className="inline-flex rounded-md border border-line px-2 py-1 text-xs font-medium text-muted">
+            {policyStatusCopy[response.policy_status]}
+          </div>
           {/* React escapes rendered text here; keep agent answers as text, not HTML. */}
           <p className="whitespace-pre-line text-sm leading-6 text-ink">{response.answer}</p>
-          {response.session_id ? (
-            <p className="text-xs text-muted">session: {response.session_id}</p>
-          ) : null}
+          <p className="text-xs leading-5 text-muted">{response.disclaimer}</p>
 
           <div>
-            <h4 className="text-sm font-semibold text-ink">citations</h4>
+            <h4 className="text-sm font-semibold text-ink">사용된 근거</h4>
             {response.citations.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">표시할 citation이 없습니다.</p>
+              <p className="mt-2 text-sm text-muted">표시할 근거가 없습니다.</p>
             ) : (
               <ul className="mt-2 space-y-2">
                 {response.citations.map((citation) => (
@@ -105,6 +110,19 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
                     </span>{" "}
                     {evidenceTypeLabel(citation.type)} / {citation.source_name} /{" "}
                     {formatDate(citation.as_of_date)}
+                    {citation.source_url ? (
+                      <>
+                        {" "}
+                        <a
+                          href={citation.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-medium text-ink underline underline-offset-2 hover:text-accent"
+                        >
+                          원문
+                        </a>
+                      </>
+                    ) : null}
                   </li>
                 ))}
               </ul>

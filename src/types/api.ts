@@ -116,6 +116,7 @@ export interface ChatResponse {
   answer: string;
   citations: ChatCitation[];
   policy_status: "allowed" | "redirected" | "blocked";
+  disclaimer: string;
   used_evidence_ids: string[];
 }
 
