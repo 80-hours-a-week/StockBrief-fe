@@ -58,6 +58,39 @@ describe("ChatExplanationPanel", () => {
     expect(screen.queryByText(/^session:/)).toBeNull();
   });
 
+  it("does not render citation source links with unsafe URL schemes", async () => {
+    mockedPostChat.mockResolvedValue(
+      chatResponse({
+        citations: [
+          {
+            evidence_id: "ev_javascript_url",
+            type: "news",
+            title: "비정상 URL 뉴스",
+            source_name: "NEWS",
+            source_url: "javascript:alert(1)",
+            as_of_date: "2026-06-23",
+          },
+          {
+            evidence_id: "ev_data_url",
+            type: "disclosure",
+            title: "비정상 URL 공시",
+            source_name: "DISCLOSURE",
+            source_url: "data:text/html,<script>alert(1)</script>",
+            as_of_date: "2026-06-23",
+          },
+        ],
+      }),
+    );
+
+    render(<ChatExplanationPanel ticker="005930" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "왜 추천됐나요?" }));
+
+    expect(await screen.findByText("ev_javascript_url")).not.toBeNull();
+    expect(screen.getByText("ev_data_url")).not.toBeNull();
+    expect(screen.queryByRole("link", { name: "원문" })).toBeNull();
+  });
+
   it("uses authenticated chat and keeps the returned session for the next request", async () => {
     mockedReadApiAuthToken.mockReturnValue("id-token");
 

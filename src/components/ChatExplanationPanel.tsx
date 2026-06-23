@@ -15,6 +15,18 @@ const policyStatusCopy: Record<ChatResponse["policy_status"], string> = {
   blocked: "응답 제한",
 };
 
+function isSafeExternalUrl(value: string | null): value is string {
+  if (!value) {
+    return false;
+  }
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function ChatExplanationPanel({ ticker }: { ticker: string }) {
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [response, setResponse] = useState<ChatResponse | null>(null);
@@ -110,7 +122,7 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
                     </span>{" "}
                     {evidenceTypeLabel(citation.type)} / {citation.source_name} /{" "}
                     {formatDate(citation.as_of_date)}
-                    {citation.source_url ? (
+                    {isSafeExternalUrl(citation.source_url) ? (
                       <>
                         {" "}
                         <a
