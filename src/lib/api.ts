@@ -26,6 +26,8 @@ import type { WatchlistInput } from "@/types/watchlist";
 type EvidenceFilterType = "financial" | "news" | "disclosure" | "price";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/v1";
+const DEFAULT_CHAT_SAFETY_DISCLAIMER =
+  "공개 데이터 기반 설명이며 투자 조언이 아닙니다. 원문 확인이 필요합니다.";
 
 export class ApiError extends Error {
   constructor(
@@ -371,6 +373,7 @@ function fromContractSourceType(
 }
 
 function toChatResponse(response: ChatContractResponse): ChatResponse {
+  const safetyDisclaimer = (response.data.safety.disclaimer ?? "").trim();
   return {
     session_id: response.data.session_id,
     message_id: null,
@@ -384,7 +387,7 @@ function toChatResponse(response: ChatContractResponse): ChatResponse {
       as_of_date: citation.published_at,
     })),
     policy_status: fromPolicyAction(response.data.safety.policy_action),
-    disclaimer: response.data.safety.disclaimer,
+    disclaimer: safetyDisclaimer || DEFAULT_CHAT_SAFETY_DISCLAIMER,
     used_evidence_ids: response.data.citations.map((citation) => citation.id),
   };
 }
