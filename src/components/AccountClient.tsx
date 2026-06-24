@@ -18,6 +18,7 @@ import {
   startCognitoAuth,
   subscribeAuthSession,
 } from "@/lib/cognito-auth";
+import { storeChatResumeSession } from "@/lib/chat-resume";
 import type {
   MeResponse,
   RiskProfile,
@@ -336,6 +337,12 @@ export function AccountClient() {
                     {chatSessionDetail.session.ticker ? (
                       <Link
                         href={chatResumeHref(chatSessionDetail.session)}
+                        onClick={() =>
+                          storeChatResumeSession({
+                            ticker: chatSessionDetail.session.ticker ?? "",
+                            sessionId: chatSessionDetail.session.session_id,
+                          })
+                        }
                         className="inline-flex rounded-md border border-line bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:text-accent focus:outline-none focus:shadow-focus"
                       >
                         이 대화 이어가기
@@ -382,7 +389,6 @@ function chatMessageRoleLabel(role: string) {
 function chatResumeHref(session: UserChatSession) {
   const params = new URLSearchParams({
     ticker: session.ticker ?? "",
-    session_id: session.session_id,
   });
   return `/chat?${params.toString()}`;
 }

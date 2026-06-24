@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSearchParams } from "next/navigation";
 
 import { ChatExplanationPanel } from "@/components/ChatExplanationPanel";
+import { storeChatResumeSession } from "@/lib/chat-resume";
 
 import { ChatClient } from "./ChatClient";
 
@@ -28,6 +29,7 @@ describe("ChatClient", () => {
 
   afterEach(() => {
     cleanup();
+    window.sessionStorage.clear();
     vi.clearAllMocks();
   });
 
@@ -41,11 +43,11 @@ describe("ChatClient", () => {
     );
   });
 
-  it("passes ticker and session_id query params into the chat panel", () => {
+  it("passes a stored resume session into the chat panel without a session_id query param", () => {
+    storeChatResumeSession({ ticker: "005380", sessionId: "chat-session-existing" });
     mockedUseSearchParams.mockReturnValue(
       readonlySearchParams({
         ticker: "005380",
-        session_id: "chat-session-existing",
       }),
     );
 
@@ -59,18 +61,37 @@ describe("ChatClient", () => {
   });
 
   it("drops the initial session when the user changes the ticker", () => {
+    storeChatResumeSession({ ticker: "005930", sessionId: "chat-session-existing" });
     mockedUseSearchParams.mockReturnValue(
       readonlySearchParams({
         ticker: "005930",
-        session_id: "chat-session-existing",
       }),
     );
 
     render(<ChatClient />);
 
+    expect(screen.getByTestId("chat-panel").textContent).toBe("005930:chat-session-existing");
+
     fireEvent.change(screen.getByLabelText("종목 코드"), {
       target: { value: "005380" },
     });
+
+    expect(screen.getByTestId("chat-panel").textContent).toBe("005380:new-session");
+    expect(mockedChatExplanationPanel).toHaveBeenLastCalledWith(
+      { ticker: "005380", initialSessionId: null },
+      undefined,
+    );
+  });
+
+  it("ignores a direct session_id query param", () => {
+    mockedUseSearchParams.mockReturnValue(
+      readonlySearchParams({
+        ticker: "005380",
+        session_id: "chat-session-existing",
+      }),
+    );
+
+    render(<ChatClient />);
 
     expect(screen.getByTestId("chat-panel").textContent).toBe("005380:new-session");
     expect(mockedChatExplanationPanel).toHaveBeenLastCalledWith(

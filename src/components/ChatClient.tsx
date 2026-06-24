@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { ChatExplanationPanel } from "@/components/ChatExplanationPanel";
+import { takeChatResumeSession } from "@/lib/chat-resume";
 
 const DEFAULT_TICKER = "005930";
 
 export function ChatClient() {
   const searchParams = useSearchParams();
   const initialTicker = normalizeTicker(searchParams.get("ticker") ?? DEFAULT_TICKER);
-  const initialSessionId = readSessionId(searchParams.get("session_id"));
+  const [initialSessionId] = useState(() => takeChatResumeSession(initialTicker));
   const [tickerInput, setTickerInput] = useState(initialTicker || DEFAULT_TICKER);
   const normalizedTicker = normalizeTicker(tickerInput);
   const canAsk = normalizedTicker.length === 6;
@@ -45,9 +46,4 @@ export function ChatClient() {
 
 function normalizeTicker(value: string) {
   return value.replace(/\D/g, "").slice(0, 6);
-}
-
-function readSessionId(value: string | null) {
-  const sessionId = value?.trim();
-  return sessionId ? sessionId : null;
 }
