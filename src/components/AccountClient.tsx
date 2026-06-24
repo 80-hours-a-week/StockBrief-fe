@@ -10,14 +10,16 @@ import {
   startCognitoAuth,
   subscribeAuthSession,
 } from "@/lib/cognito-auth";
-import type { MeResponse, UserChatSession } from "@/types/api";
+import type { MeResponse, RiskProfile, UserChatSession } from "@/types/api";
 
 export function AccountClient() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [me, setMe] = useState<MeResponse | null>(null);
   const [nickname, setNickname] = useState("");
-  const [riskProfile, setRiskProfile] = useState("balanced");
+  const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
   const [chatSessions, setChatSessions] = useState<UserChatSession[]>([]);
+  const [loadingAccount, setLoadingAccount] = useState(false);
+  const [savingAccount, setSavingAccount] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const configured = isCognitoConfigured();
@@ -37,6 +39,8 @@ export function AccountClient() {
     let cancelled = false;
     async function load() {
       setError(null);
+      setMessage(null);
+      setLoadingAccount(true);
       try {
         const [profile, preferences, sessions] = await Promise.all([
           getMe(token),
@@ -46,14 +50,16 @@ export function AccountClient() {
         if (cancelled) return;
         setMe(profile);
         setNickname(profile.nickname ?? "");
-        setRiskProfile(
-          typeof preferences.preferences.risk_profile === "string"
-            ? preferences.preferences.risk_profile
-            : "balanced",
-        );
+        setRiskProfile(readRiskProfile(preferences.preferences.risk_profile));
         setChatSessions(sessions.items);
       } catch {
-        if (!cancelled) setError("로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.");
+        if (!cancelled) {
+          setMe(null);
+          setChatSessions([]);
+          setError("로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.");
+        }
+      } finally {
+        if (!cancelled) setLoadingAccount(false);
       }
     }
 
@@ -64,9 +70,10 @@ export function AccountClient() {
   }, [accessToken]);
 
   async function saveProfile() {
-    if (!accessToken) return;
+    if (!accessToken || !me || savingAccount) return;
     setError(null);
     setMessage(null);
+    setSavingAccount(true);
     try {
       const updated = await patchMe(accessToken, { nickname: nickname.trim() || null });
       await putUserPreferences(accessToken, { risk_profile: riskProfile });
@@ -74,6 +81,8 @@ export function AccountClient() {
       setMessage("계정 설정을 저장했습니다.");
     } catch {
       setError("계정 설정 저장에 실패했습니다.");
+    } finally {
+      setSavingAccount(false);
     }
   }
 
@@ -123,7 +132,11 @@ export function AccountClient() {
               이메일 회원가입
             </button>
           </div>
-        ) : (
+        ) : loadingAccount ? (
+          <div className="mt-6 border-y border-line bg-field px-4 py-6 text-sm text-muted" role="status">
+            계정 정보를 확인하는 중입니다.
+          </div>
+        ) : me ? (
           <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1fr]">
             <div className="space-y-4">
               <div>
@@ -148,7 +161,7 @@ export function AccountClient() {
                 <span className="text-xs font-medium text-muted">선호 리스크</span>
                 <select
                   value={riskProfile}
-                  onChange={(event) => setRiskProfile(event.target.value)}
+                  onChange={(event) => setRiskProfile(readRiskProfile(event.target.value))}
                   className="mt-1 w-full rounded-md border border-line bg-field px-3 py-2 text-sm text-ink outline-none transition focus:bg-white focus:shadow-focus"
                 >
                   <option value="conservative">conservative</option>
@@ -160,9 +173,10 @@ export function AccountClient() {
               <button
                 type="button"
                 onClick={() => void saveProfile()}
-                className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent focus:outline-none focus:shadow-focus"
+                disabled={savingAccount}
+                className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent focus:outline-none focus:shadow-focus disabled:cursor-not-allowed disabled:opacity-60"
               >
-                저장
+                {savingAccount ? "저장 중" : "저장"}
               </button>
             </div>
 
@@ -182,6 +196,10 @@ export function AccountClient() {
               )}
             </div>
           </div>
+        ) : (
+          <div className="mt-6 border-y border-line bg-field px-4 py-6 text-sm text-muted">
+            계정 정보를 표시할 수 없습니다. 다시 로그인해 주세요.
+          </div>
         )}
 
         {message ? <p className="mt-4 text-sm font-medium text-accent">{message}</p> : null}
@@ -189,4 +207,11 @@ export function AccountClient() {
       </section>
     </div>
   );
+}
+
+function readRiskProfile(value: unknown): RiskProfile {
+  if (value === "conservative" || value === "balanced" || value === "aggressive") {
+    return value;
+  }
+  return "balanced";
 }
