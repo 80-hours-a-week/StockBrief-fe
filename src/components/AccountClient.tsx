@@ -18,6 +18,7 @@ export function AccountClient() {
   const [nickname, setNickname] = useState("");
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
   const [chatSessions, setChatSessions] = useState<UserChatSession[]>([]);
+  const [chatSessionsError, setChatSessionsError] = useState<string | null>(null);
   const [loadingAccount, setLoadingAccount] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,26 +41,37 @@ export function AccountClient() {
     async function load() {
       setError(null);
       setMessage(null);
+      setChatSessionsError(null);
       setLoadingAccount(true);
       try {
-        const [profile, preferences, sessions] = await Promise.all([
+        const [profile, preferences] = await Promise.all([
           getMe(token),
           getUserPreferences(token),
-          getUserChatSessions(token),
         ]);
         if (cancelled) return;
         setMe(profile);
         setNickname(profile.nickname ?? "");
         setRiskProfile(readRiskProfile(preferences.preferences.risk_profile));
-        setChatSessions(sessions.items);
       } catch {
         if (!cancelled) {
           setMe(null);
           setChatSessions([]);
           setError("로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.");
         }
+        return;
       } finally {
         if (!cancelled) setLoadingAccount(false);
+      }
+
+      try {
+        const sessions = await getUserChatSessions(token);
+        if (cancelled) return;
+        setChatSessions(sessions.items);
+      } catch {
+        if (!cancelled) {
+          setChatSessions([]);
+          setChatSessionsError("최근 대화 이력을 불러오지 못했습니다.");
+        }
       }
     }
 
@@ -76,9 +88,13 @@ export function AccountClient() {
     setSavingAccount(true);
     try {
       const updated = await patchMe(accessToken, { nickname: nickname.trim() || null });
-      await putUserPreferences(accessToken, { risk_profile: riskProfile });
       setMe(updated);
-      setMessage("계정 설정을 저장했습니다.");
+      try {
+        await putUserPreferences(accessToken, { risk_profile: riskProfile });
+        setMessage("계정 설정을 저장했습니다.");
+      } catch {
+        setError("닉네임은 저장됐지만 선호 리스크 저장에 실패했습니다.");
+      }
     } catch {
       setError("계정 설정 저장에 실패했습니다.");
     } finally {
@@ -182,7 +198,9 @@ export function AccountClient() {
 
             <div>
               <h2 className="text-sm font-semibold text-ink">최근 대화 이력</h2>
-              {chatSessions.length === 0 ? (
+              {chatSessionsError ? (
+                <p className="mt-3 text-sm text-caution">{chatSessionsError}</p>
+              ) : chatSessions.length === 0 ? (
                 <p className="mt-3 text-sm text-muted">저장된 대화 세션이 없습니다.</p>
               ) : (
                 <ul className="mt-3 divide-y divide-line border-y border-line">

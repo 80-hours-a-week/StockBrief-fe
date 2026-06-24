@@ -86,6 +86,17 @@ describe("AccountClient", () => {
     expect(mockedGetUserChatSessions).toHaveBeenCalledWith("id-token");
   });
 
+  it("keeps the account form available when only recent chat sessions fail", async () => {
+    mockedGetUserChatSessions.mockRejectedValue(new Error("sessions failed"));
+
+    render(<AccountClient />);
+
+    expect(await screen.findByText("user@example.com")).not.toBeNull();
+    expect((screen.getByLabelText("닉네임") as HTMLInputElement).value).toBe("기존닉네임");
+    expect(await screen.findByText("최근 대화 이력을 불러오지 못했습니다.")).not.toBeNull();
+    expect(screen.queryByText("로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.")).toBeNull();
+  });
+
   it("saves a trimmed nickname and risk profile without duplicate submissions", async () => {
     const saveRequest = deferred<MeResponse>();
     mockedPatchMe.mockReturnValue(saveRequest.promise);
@@ -115,6 +126,27 @@ describe("AccountClient", () => {
       });
     });
     expect(await screen.findByText("계정 설정을 저장했습니다.")).not.toBeNull();
+  });
+
+  it("shows a partial failure when preferences fail after nickname save succeeds", async () => {
+    mockedPatchMe.mockResolvedValue(me({ nickname: "새별" }));
+    mockedPutUserPreferences.mockRejectedValue(new Error("preferences failed"));
+
+    render(<AccountClient />);
+
+    const nicknameInput = await screen.findByLabelText("닉네임");
+    fireEvent.change(nicknameInput, { target: { value: "새별" } });
+    fireEvent.change(screen.getByLabelText("선호 리스크"), {
+      target: { value: "aggressive" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
+
+    expect(await screen.findByText("닉네임은 저장됐지만 선호 리스크 저장에 실패했습니다.")).not.toBeNull();
+    expect(mockedPatchMe).toHaveBeenCalledWith("id-token", { nickname: "새별" });
+    expect(mockedPutUserPreferences).toHaveBeenCalledWith("id-token", {
+      risk_profile: "aggressive",
+    });
+    expect(screen.queryByText("계정 설정 저장에 실패했습니다.")).toBeNull();
   });
 
   it("shows a retry-oriented message when account loading fails", async () => {
