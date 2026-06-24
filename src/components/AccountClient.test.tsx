@@ -96,13 +96,22 @@ describe("AccountClient", () => {
   });
 
   it("loads profile, preferences, and recent chat sessions for an authenticated user", async () => {
-    mockedGetUserPreferences.mockResolvedValue(preferences("conservative"));
+    mockedGetUserPreferences.mockResolvedValue(
+      preferences("conservative", {
+        notifications: {
+          email_enabled: true,
+          watchlist_digest: "daily",
+        },
+      }),
+    );
 
     render(<AccountClient />);
 
     expect(await screen.findByText("user@example.com")).not.toBeNull();
     expect((screen.getByLabelText("닉네임") as HTMLInputElement).value).toBe("기존닉네임");
     expect((screen.getByLabelText("선호 리스크") as HTMLSelectElement).value).toBe("conservative");
+    expect((screen.getByLabelText(/email 알림 받기/) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByLabelText("관심종목 요약") as HTMLSelectElement).value).toBe("daily");
     expect(screen.getByText("삼성전자 설명")).not.toBeNull();
     expect(mockedGetMe).toHaveBeenCalledWith("id-token");
     expect(mockedGetUserPreferences).toHaveBeenCalledWith("id-token");
@@ -241,6 +250,17 @@ describe("AccountClient", () => {
   it("saves a trimmed nickname and risk profile without duplicate submissions", async () => {
     const saveRequest = deferred<MeResponse>();
     mockedPatchMe.mockReturnValue(saveRequest.promise);
+    mockedGetUserPreferences.mockResolvedValue(
+      preferences("balanced", {
+        markets: ["KOSPI"],
+        sectors: ["반도체"],
+        notifications: {
+          email_enabled: false,
+          watchlist_digest: "off",
+          quiet_hours: { start: "22:00", end: "08:00" },
+        },
+      }),
+    );
 
     render(<AccountClient />);
 
@@ -248,6 +268,10 @@ describe("AccountClient", () => {
     fireEvent.change(nicknameInput, { target: { value: "  새별  " } });
     fireEvent.change(screen.getByLabelText("선호 리스크"), {
       target: { value: "aggressive" },
+    });
+    fireEvent.click(screen.getByLabelText(/email 알림 받기/));
+    fireEvent.change(screen.getByLabelText("관심종목 요약"), {
+      target: { value: "weekly" },
     });
 
     const saveButton = screen.getByRole("button", { name: "저장" });
@@ -263,7 +287,14 @@ describe("AccountClient", () => {
 
     await waitFor(() => {
       expect(mockedPutUserPreferences).toHaveBeenCalledWith("id-token", {
+        markets: ["KOSPI"],
+        sectors: ["반도체"],
         risk_profile: "aggressive",
+        notifications: {
+          quiet_hours: { start: "22:00", end: "08:00" },
+          email_enabled: true,
+          watchlist_digest: "weekly",
+        },
       });
     });
     expect(await screen.findByText("계정 설정을 저장했습니다.")).not.toBeNull();
@@ -282,10 +313,14 @@ describe("AccountClient", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "저장" }));
 
-    expect(await screen.findByText("닉네임은 저장됐지만 선호 리스크 저장에 실패했습니다.")).not.toBeNull();
+    expect(await screen.findByText("닉네임은 저장됐지만 선호 설정 저장에 실패했습니다.")).not.toBeNull();
     expect(mockedPatchMe).toHaveBeenCalledWith("id-token", { nickname: "새별" });
     expect(mockedPutUserPreferences).toHaveBeenCalledWith("id-token", {
       risk_profile: "aggressive",
+      notifications: {
+        email_enabled: false,
+        watchlist_digest: "off",
+      },
     });
     expect(screen.queryByText("계정 설정 저장에 실패했습니다.")).toBeNull();
   });
@@ -332,9 +367,13 @@ function me(overrides: Partial<MeResponse> = {}): MeResponse {
   };
 }
 
-function preferences(riskProfile: string): UserPreferencesResponse {
+function preferences(
+  riskProfile: string,
+  overrides: Record<string, unknown> = {},
+): UserPreferencesResponse {
   return {
     preferences: {
+      ...overrides,
       risk_profile: riskProfile,
     },
   };

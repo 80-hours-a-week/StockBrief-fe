@@ -511,7 +511,11 @@ Request:
   "preferences": {
     "risk_profile": "balanced",
     "markets": ["KOSPI"],
-    "sectors": ["반도체"]
+    "sectors": ["반도체"],
+    "notifications": {
+      "email_enabled": true,
+      "watchlist_digest": "weekly"
+    }
   }
 }
 ```
@@ -523,7 +527,11 @@ Response `200`:
   "preferences": {
     "risk_profile": "balanced",
     "markets": ["KOSPI"],
-    "sectors": ["반도체"]
+    "sectors": ["반도체"],
+    "notifications": {
+      "email_enabled": true,
+      "watchlist_digest": "weekly"
+    }
   }
 }
 ```
