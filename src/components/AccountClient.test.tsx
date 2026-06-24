@@ -53,12 +53,17 @@ const mockedIsCognitoConfigured = vi.mocked(isCognitoConfigured);
 const mockedReadApiAuthToken = vi.mocked(readApiAuthToken);
 const mockedStartCognitoAuth = vi.mocked(startCognitoAuth);
 const mockedSubscribeAuthSession = vi.mocked(subscribeAuthSession);
+let authSessionCallback: (() => void) | null = null;
 
 describe("AccountClient", () => {
   beforeEach(() => {
+    authSessionCallback = null;
     mockedIsCognitoConfigured.mockReturnValue(true);
     mockedReadApiAuthToken.mockReturnValue("id-token");
-    mockedSubscribeAuthSession.mockReturnValue(() => undefined);
+    mockedSubscribeAuthSession.mockImplementation((callback) => {
+      authSessionCallback = callback;
+      return () => undefined;
+    });
     mockedStartCognitoAuth.mockResolvedValue(undefined);
     mockedGetMe.mockResolvedValue(me());
     mockedGetUserPreferences.mockResolvedValue(preferences("balanced"));
@@ -164,6 +169,38 @@ describe("AccountClient", () => {
     expect(screen.queryByText("삼성전자 늦은 상세입니다.")).toBeNull();
     expect(mockedGetUserChatSessionDetail).toHaveBeenNthCalledWith(1, "id-token", "chat-1");
     expect(mockedGetUserChatSessionDetail).toHaveBeenNthCalledWith(2, "id-token", "chat-2");
+  });
+
+  it("clears stale chat detail loading when the auth token changes", async () => {
+    const detailRequest = deferred<UserChatSessionDetailResponse>();
+    mockedGetUserChatSessionDetail.mockReturnValue(detailRequest.promise);
+
+    render(<AccountClient />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /삼성전자 설명/ }));
+
+    expect(await screen.findByText("대화 내용을 불러오는 중입니다.")).not.toBeNull();
+
+    mockedReadApiAuthToken.mockReturnValue("rotated-id-token");
+    await act(async () => {
+      authSessionCallback?.();
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("대화 내용을 불러오는 중입니다.")).toBeNull();
+    });
+
+    await act(async () => {
+      detailRequest.resolve(
+        chatSessionDetail({
+          assistantContent: "이전 token의 늦은 상세입니다.",
+        }),
+      );
+      await detailRequest.promise;
+    });
+
+    expect(screen.queryByText("이전 token의 늦은 상세입니다.")).toBeNull();
+    expect(mockedGetUserChatSessionDetail).toHaveBeenCalledWith("id-token", "chat-1");
   });
 
   it("keeps recent chat sessions visible when a selected session detail fails", async () => {

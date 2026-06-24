@@ -48,19 +48,24 @@ export function AccountClient() {
   const configured = isCognitoConfigured();
   const showingAccountLoading = Boolean(accessToken) && (loadingAccount || (!me && !error));
 
+  function resetChatSessionDetailState() {
+    setChatSessionDetail(null);
+    setChatSessionDetailError(null);
+    setChatSessionDetailLoading(false);
+  }
+
   useEffect(() => {
     return subscribeAuthSession(() => {
       const nextToken = readApiAuthToken();
+      const previousToken = accessTokenRef.current;
       accessTokenRef.current = nextToken;
-      chatSessionDetailRequestRef.current = {
-        requestId: chatSessionDetailRequestRef.current.requestId + 1,
-        sessionId: null,
-        token: nextToken,
-      };
-      if (!nextToken) {
-        setChatSessionDetail(null);
-        setChatSessionDetailError(null);
-        setChatSessionDetailLoading(false);
+      if (previousToken !== nextToken) {
+        chatSessionDetailRequestRef.current = {
+          requestId: chatSessionDetailRequestRef.current.requestId + 1,
+          sessionId: null,
+          token: nextToken,
+        };
+        resetChatSessionDetailState();
       }
       setAccessToken(nextToken);
     });
