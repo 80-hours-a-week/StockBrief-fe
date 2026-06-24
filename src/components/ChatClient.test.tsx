@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSearchParams } from "next/navigation";
 
@@ -43,7 +43,7 @@ describe("ChatClient", () => {
     );
   });
 
-  it("passes a stored resume session into the chat panel without a session_id query param", () => {
+  it("passes a stored resume session into the chat panel without a session_id query param", async () => {
     storeChatResumeSession({ ticker: "005380", sessionId: "chat-session-existing" });
     mockedUseSearchParams.mockReturnValue(
       readonlySearchParams({
@@ -53,14 +53,16 @@ describe("ChatClient", () => {
 
     render(<ChatClient />);
 
-    expect(screen.getByTestId("chat-panel").textContent).toBe("005380:chat-session-existing");
-    expect(mockedChatExplanationPanel).toHaveBeenLastCalledWith(
-      { ticker: "005380", initialSessionId: "chat-session-existing" },
-      undefined,
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-panel").textContent).toBe("005380:chat-session-existing");
+      expect(mockedChatExplanationPanel).toHaveBeenLastCalledWith(
+        { ticker: "005380", initialSessionId: "chat-session-existing" },
+        undefined,
+      );
+    });
   });
 
-  it("drops the initial session when the user changes the ticker", () => {
+  it("drops the initial session when the user changes the ticker", async () => {
     storeChatResumeSession({ ticker: "005930", sessionId: "chat-session-existing" });
     mockedUseSearchParams.mockReturnValue(
       readonlySearchParams({
@@ -70,7 +72,9 @@ describe("ChatClient", () => {
 
     render(<ChatClient />);
 
-    expect(screen.getByTestId("chat-panel").textContent).toBe("005930:chat-session-existing");
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-panel").textContent).toBe("005930:chat-session-existing");
+    });
 
     fireEvent.change(screen.getByLabelText("종목 코드"), {
       target: { value: "005380" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { ChatExplanationPanel } from "@/components/ChatExplanationPanel";
@@ -11,11 +11,23 @@ const DEFAULT_TICKER = "005930";
 export function ChatClient() {
   const searchParams = useSearchParams();
   const initialTicker = normalizeTicker(searchParams.get("ticker") ?? DEFAULT_TICKER);
-  const [initialSessionId] = useState(() => takeChatResumeSession(initialTicker));
+  const [initialSessionId, setInitialSessionId] = useState<string | null>(null);
   const [tickerInput, setTickerInput] = useState(initialTicker || DEFAULT_TICKER);
   const normalizedTicker = normalizeTicker(tickerInput);
   const canAsk = normalizedTicker.length === 6;
   const sessionId = normalizedTicker === initialTicker ? initialSessionId : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setInitialSessionId(takeChatResumeSession(initialTicker));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialTicker]);
 
   return (
     <section className="py-6">
