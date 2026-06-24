@@ -4,15 +4,21 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { getMe } from "@/lib/api";
+import { logClientError } from "@/lib/client-telemetry";
 import { completeCognitoCallback, readApiAuthToken } from "@/lib/cognito-auth";
 import { importLocalWatchlistOnce } from "@/lib/server-watchlist-store";
 
 type CallbackStatus = "loading" | "done" | "profile-error" | "sync-error" | "error";
+type AuthCallbackFailureStage = "callback" | "token" | "profile" | "watchlist_import";
 
 interface SyncSummary {
   importedCount: number;
   skippedExistingCount: number;
   alreadySynced: boolean;
+}
+
+function logAuthCallbackFailure(stage: AuthCallbackFailureStage, error: unknown): void {
+  logClientError("Auth callback flow failed.", error, { stage });
 }
 
 export function AuthCallbackClient({
@@ -36,13 +42,15 @@ export function AuthCallbackClient({
     async function complete() {
       try {
         await completeCognitoCallback(authCode, authState);
-      } catch {
+      } catch (caughtError) {
+        logAuthCallbackFailure("callback", caughtError);
         if (!cancelled) setStatus("error");
         return;
       }
 
       const token = readApiAuthToken();
       if (!token) {
+        logAuthCallbackFailure("token", { name: "AuthCallbackTokenMissingError" });
         if (!cancelled) setStatus("profile-error");
         return;
       }
@@ -50,7 +58,8 @@ export function AuthCallbackClient({
       let me: Awaited<ReturnType<typeof getMe>>;
       try {
         me = await getMe(token);
-      } catch {
+      } catch (caughtError) {
+        logAuthCallbackFailure("profile", caughtError);
         if (!cancelled) setStatus("profile-error");
         return;
       }
@@ -64,7 +73,8 @@ export function AuthCallbackClient({
           alreadySynced: result.alreadySynced,
         });
         setStatus("done");
-      } catch {
+      } catch (caughtError) {
+        logAuthCallbackFailure("watchlist_import", caughtError);
         if (!cancelled) setStatus("sync-error");
       }
     }

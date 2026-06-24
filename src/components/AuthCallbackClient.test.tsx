@@ -59,6 +59,7 @@ describe("AuthCallbackClient", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("completes Cognito callback and imports the local watchlist", async () => {
@@ -77,7 +78,13 @@ describe("AuthCallbackClient", () => {
   });
 
   it("keeps the user signed in when only watchlist sync fails", async () => {
-    mockedImportLocalWatchlistOnce.mockRejectedValue(new Error("sync failed"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const syncError = Object.assign(new Error("sync failed"), {
+      name: "ApiError",
+      status: 503,
+      token: "secret-token",
+    });
+    mockedImportLocalWatchlistOnce.mockRejectedValue(syncError);
 
     render(<AuthCallbackClient code="auth-code" state="auth-state" />);
 
@@ -87,10 +94,25 @@ describe("AuthCallbackClient", () => {
     expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
       "/account",
     );
+    expect(consoleError).toHaveBeenCalledWith("Auth callback flow failed.", {
+      stage: "watchlist_import",
+      error: {
+        name: "ApiError",
+        status: 503,
+      },
+    });
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("secret-token");
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("id-token");
   });
 
   it("shows a profile error when the account profile cannot be loaded", async () => {
-    mockedGetMe.mockRejectedValue(new Error("profile failed"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const profileError = Object.assign(new Error("profile failed"), {
+      name: "ApiError",
+      status: 502,
+      authorization: "Bearer id-token",
+    });
+    mockedGetMe.mockRejectedValue(profileError);
 
     render(<AuthCallbackClient code="auth-code" state="auth-state" />);
 
@@ -99,9 +121,18 @@ describe("AuthCallbackClient", () => {
     expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
       "/account",
     );
+    expect(consoleError).toHaveBeenCalledWith("Auth callback flow failed.", {
+      stage: "profile",
+      error: {
+        name: "ApiError",
+        status: 502,
+      },
+    });
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain("Bearer id-token");
   });
 
   it("shows a profile error when the callback completes without an API token", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mockedReadApiAuthToken.mockReturnValue(null);
 
     render(<AuthCallbackClient code="auth-code" state="auth-state" />);
@@ -112,10 +143,23 @@ describe("AuthCallbackClient", () => {
     expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
       "/account",
     );
+    expect(consoleError).toHaveBeenCalledWith("Auth callback flow failed.", {
+      stage: "token",
+      error: {
+        name: "AuthCallbackTokenMissingError",
+      },
+    });
   });
 
   it("does not classify a failed Cognito callback as a watchlist sync failure when a stale token exists", async () => {
-    mockedCompleteCognitoCallback.mockRejectedValue(new Error("callback failed"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const callbackError = Object.assign(new Error("callback failed"), {
+      name: "AuthCallbackError",
+      code: "auth-code",
+      state: "auth-state",
+      token: "stale-id-token",
+    });
+    mockedCompleteCognitoCallback.mockRejectedValue(callbackError);
     mockedReadApiAuthToken.mockReturnValue("stale-id-token");
 
     render(<AuthCallbackClient code="auth-code" state="auth-state" />);
@@ -126,6 +170,16 @@ describe("AuthCallbackClient", () => {
     );
     expect(mockedGetMe).not.toHaveBeenCalled();
     expect(mockedImportLocalWatchlistOnce).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith("Auth callback flow failed.", {
+      stage: "callback",
+      error: {
+        name: "AuthCallbackError",
+      },
+    });
+    const serializedLogs = JSON.stringify(consoleError.mock.calls);
+    expect(serializedLogs).not.toContain("auth-code");
+    expect(serializedLogs).not.toContain("auth-state");
+    expect(serializedLogs).not.toContain("stale-id-token");
   });
 });
 
