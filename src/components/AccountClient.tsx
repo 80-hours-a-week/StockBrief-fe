@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   getMe,
@@ -332,6 +333,14 @@ export function AccountClient() {
                         <ChatMessageItem key={item.message_id} message={item} />
                       ))}
                     </ol>
+                    {chatSessionDetail.session.ticker ? (
+                      <Link
+                        href={chatResumeHref(chatSessionDetail.session)}
+                        className="inline-flex rounded-md border border-line bg-white px-3 py-2 text-xs font-semibold text-ink transition hover:border-accent hover:text-accent focus:outline-none focus:shadow-focus"
+                      >
+                        이 대화 이어가기
+                      </Link>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="mt-3 text-sm text-muted">대화 세션을 선택하면 내용을 확인할 수 있습니다.</p>
@@ -368,6 +377,14 @@ function chatMessageRoleLabel(role: string) {
   if (role === "user") return "사용자";
   if (role === "assistant") return "AI 설명";
   return "시스템";
+}
+
+function chatResumeHref(session: UserChatSession) {
+  const params = new URLSearchParams({
+    ticker: session.ticker ?? "",
+    session_id: session.session_id,
+  });
+  return `/chat?${params.toString()}`;
 }
 
 function readRiskProfile(value: unknown): RiskProfile {

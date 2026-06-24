@@ -117,6 +117,9 @@ describe("AccountClient", () => {
     expect(await screen.findByText("왜 검토 후보로 나왔나요?")).not.toBeNull();
     expect(screen.getByText("공개 데이터 기준 설명입니다.")).not.toBeNull();
     expect(screen.getByText("근거 1개")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "이 대화 이어가기" }).getAttribute("href")).toBe(
+      "/chat?ticker=005930&session_id=chat-1",
+    );
     expect(sessionButton.getAttribute("aria-current")).toBe("true");
   });
 

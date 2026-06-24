@@ -37,13 +37,18 @@ function logChatFailure(error: unknown, context: ChatFailureContext) {
   logClientError("Chat explanation request failed.", error, context);
 }
 
-export function ChatExplanationPanel({ ticker }: { ticker: string }) {
+interface ChatExplanationPanelProps {
+  ticker: string;
+  initialSessionId?: string | null;
+}
+
+export function ChatExplanationPanel({ ticker, initialSessionId = null }: ChatExplanationPanelProps) {
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [response, setResponse] = useState<ChatResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
 
   useEffect(() => {
     const sync = () => setAccessToken(readApiAuthToken());
@@ -88,6 +93,9 @@ export function ChatExplanationPanel({ ticker }: { ticker: string }) {
           <p className="mt-1 text-sm leading-6 text-muted">
             저장된 점수, 추천 이유, 근거, 리스크만 사용해 설명합니다.
           </p>
+          {sessionId ? (
+            <p className="mt-1 text-xs text-muted">이전 대화에 이어서 질문합니다.</p>
+          ) : null}
         </div>
         <button
           type="button"
