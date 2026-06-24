@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { postChat } from "./api";
+import { postAuthenticatedChat, postChat } from "./api";
 
-describe("postChat", () => {
+describe("chat API adapters", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -62,6 +62,90 @@ describe("postChat", () => {
 
     expect(response.policy_status).toBe("allowed");
     expect(response.disclaimer).toContain("투자 조언");
+  });
+
+  it("maps non-null citation published_at values to chat citation dates", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          chatContractResponse({
+            citations: [
+              {
+                id: "ev_005930_news",
+                source_type: "NEWS",
+                title: "삼성전자 뉴스",
+                url: "https://example.com/news",
+                published_at: "2026-06-23T09:30:00+09:00",
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const response = await postChat({
+      ticker: "005930",
+      message: "왜 추천됐나요?",
+    });
+
+    expect(response.citations).toEqual([
+      {
+        evidence_id: "ev_005930_news",
+        type: "news",
+        title: "삼성전자 뉴스",
+        source_name: "NEWS",
+        source_url: "https://example.com/news",
+        as_of_date: "2026-06-23T09:30:00+09:00",
+      },
+    ]);
+    expect(response.used_evidence_ids).toEqual(["ev_005930_news"]);
+  });
+
+  it("maps non-null citation published_at values for authenticated chat responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          chatContractResponse({
+            citations: [
+              {
+                id: "ev_005930_disclosure",
+                source_type: "DISCLOSURE",
+                title: "삼성전자 공시",
+                url: "https://example.com/disclosure",
+                published_at: "2026-06-22T15:00:00+09:00",
+              },
+            ],
+          }),
+        ),
+      ),
+    );
+
+    const response = await postAuthenticatedChat("id-token", {
+      ticker: "005930",
+      message: "근거를 설명해줘",
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/chat",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer id-token",
+        }),
+      }),
+    );
+    expect(response.citations).toEqual([
+      {
+        evidence_id: "ev_005930_disclosure",
+        type: "disclosure",
+        title: "삼성전자 공시",
+        source_name: "DISCLOSURE",
+        source_url: "https://example.com/disclosure",
+        as_of_date: "2026-06-22T15:00:00+09:00",
+      },
+    ]);
+    expect(response.used_evidence_ids).toEqual(["ev_005930_disclosure"]);
   });
 });
 

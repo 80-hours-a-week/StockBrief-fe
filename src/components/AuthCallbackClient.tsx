@@ -7,7 +7,7 @@ import { getMe } from "@/lib/api";
 import { completeCognitoCallback, readApiAuthToken } from "@/lib/cognito-auth";
 import { importLocalWatchlistOnce } from "@/lib/server-watchlist-store";
 
-type CallbackStatus = "loading" | "done" | "sync-error" | "error";
+type CallbackStatus = "loading" | "done" | "profile-error" | "sync-error" | "error";
 
 interface SyncSummary {
   importedCount: number;
@@ -34,27 +34,38 @@ export function AuthCallbackClient({
     const authState = state;
     let cancelled = false;
     async function complete() {
-      let callbackCompleted = false;
-
       try {
         await completeCognitoCallback(authCode, authState);
-        callbackCompleted = true;
-        const token = readApiAuthToken();
-        if (!token) {
-          throw new Error("Missing Cognito API token after callback.");
-        }
-        const me = await getMe(token);
-        const result = await importLocalWatchlistOnce(token, me);
-        if (!cancelled) {
-          setSyncSummary({
-            importedCount: result.importedCount,
-            skippedExistingCount: result.skippedExistingCount,
-            alreadySynced: result.alreadySynced,
-          });
-          setStatus("done");
-        }
       } catch {
-        if (!cancelled) setStatus(callbackCompleted ? "sync-error" : "error");
+        if (!cancelled) setStatus("error");
+        return;
+      }
+
+      const token = readApiAuthToken();
+      if (!token) {
+        if (!cancelled) setStatus("profile-error");
+        return;
+      }
+
+      let me: Awaited<ReturnType<typeof getMe>>;
+      try {
+        me = await getMe(token);
+      } catch {
+        if (!cancelled) setStatus("profile-error");
+        return;
+      }
+
+      try {
+        const result = await importLocalWatchlistOnce(token, me);
+        if (cancelled) return;
+        setSyncSummary({
+          importedCount: result.importedCount,
+          skippedExistingCount: result.skippedExistingCount,
+          alreadySynced: result.alreadySynced,
+        });
+        setStatus("done");
+      } catch {
+        if (!cancelled) setStatus("sync-error");
       }
     }
 
@@ -81,6 +92,20 @@ export function AuthCallbackClient({
               className="mt-5 inline-flex rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white transition hover:bg-accent focus:outline-none focus:shadow-focus"
             >
               관심종목으로 이동
+            </Link>
+          </>
+        ) : null}
+        {status === "profile-error" ? (
+          <>
+            <p className="mt-3 text-sm leading-6 text-muted">
+              로그인은 완료되었지만 계정 정보를 불러오지 못했습니다. 계정 화면에서 로그인 상태를 확인한 뒤 다시
+              시도해 주세요.
+            </p>
+            <Link
+              href="/account"
+              className="mt-5 inline-flex rounded-md border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent focus:outline-none focus:shadow-focus"
+            >
+              계정으로 이동
             </Link>
           </>
         ) : null}

@@ -89,6 +89,31 @@ describe("AuthCallbackClient", () => {
     );
   });
 
+  it("shows a profile error when the account profile cannot be loaded", async () => {
+    mockedGetMe.mockRejectedValue(new Error("profile failed"));
+
+    render(<AuthCallbackClient code="auth-code" state="auth-state" />);
+
+    expect(await screen.findByText(/로그인은 완료되었지만 계정 정보를 불러오지 못했습니다/)).not.toBeNull();
+    expect(mockedImportLocalWatchlistOnce).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
+      "/account",
+    );
+  });
+
+  it("shows a profile error when the callback completes without an API token", async () => {
+    mockedReadApiAuthToken.mockReturnValue(null);
+
+    render(<AuthCallbackClient code="auth-code" state="auth-state" />);
+
+    expect(await screen.findByText(/로그인은 완료되었지만 계정 정보를 불러오지 못했습니다/)).not.toBeNull();
+    expect(mockedGetMe).not.toHaveBeenCalled();
+    expect(mockedImportLocalWatchlistOnce).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
+      "/account",
+    );
+  });
+
   it("does not classify a failed Cognito callback as a watchlist sync failure when a stale token exists", async () => {
     mockedCompleteCognitoCallback.mockRejectedValue(new Error("callback failed"));
     mockedReadApiAuthToken.mockReturnValue("stale-id-token");
