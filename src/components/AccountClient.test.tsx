@@ -110,12 +110,14 @@ describe("AccountClient", () => {
   it("loads a selected recent chat session detail", async () => {
     render(<AccountClient />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /삼성전자 설명/ }));
+    const sessionButton = await screen.findByRole("button", { name: /삼성전자 설명/ });
+    fireEvent.click(sessionButton);
 
     expect(mockedGetUserChatSessionDetail).toHaveBeenCalledWith("id-token", "chat-1");
     expect(await screen.findByText("왜 검토 후보로 나왔나요?")).not.toBeNull();
     expect(screen.getByText("공개 데이터 기준 설명입니다.")).not.toBeNull();
     expect(screen.getByText("근거 1개")).not.toBeNull();
+    expect(sessionButton.getAttribute("aria-current")).toBe("true");
   });
 
   it("keeps only the latest selected chat session detail when requests finish out of order", async () => {
@@ -140,8 +142,10 @@ describe("AccountClient", () => {
 
     render(<AccountClient />);
 
-    fireEvent.click(await screen.findByRole("button", { name: /삼성전자 설명/ }));
-    fireEvent.click(await screen.findByRole("button", { name: /현대차 설명/ }));
+    const firstSessionButton = await screen.findByRole("button", { name: /삼성전자 설명/ });
+    const secondSessionButton = await screen.findByRole("button", { name: /현대차 설명/ });
+    fireEvent.click(firstSessionButton);
+    fireEvent.click(secondSessionButton);
 
     await act(async () => {
       secondRequest.resolve(
@@ -167,6 +171,8 @@ describe("AccountClient", () => {
 
     expect(screen.getByText("현대차 최신 상세입니다.")).not.toBeNull();
     expect(screen.queryByText("삼성전자 늦은 상세입니다.")).toBeNull();
+    expect(firstSessionButton.getAttribute("aria-current")).toBeNull();
+    expect(secondSessionButton.getAttribute("aria-current")).toBe("true");
     expect(mockedGetUserChatSessionDetail).toHaveBeenNthCalledWith(1, "id-token", "chat-1");
     expect(mockedGetUserChatSessionDetail).toHaveBeenNthCalledWith(2, "id-token", "chat-2");
   });

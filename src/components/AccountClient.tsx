@@ -32,6 +32,7 @@ export function AccountClient() {
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
   const [chatSessions, setChatSessions] = useState<UserChatSession[]>([]);
   const [chatSessionsError, setChatSessionsError] = useState<string | null>(null);
+  const [selectedChatSessionId, setSelectedChatSessionId] = useState<string | null>(null);
   const [chatSessionDetail, setChatSessionDetail] = useState<UserChatSessionDetailResponse | null>(null);
   const [chatSessionDetailLoading, setChatSessionDetailLoading] = useState(false);
   const [chatSessionDetailError, setChatSessionDetailError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function AccountClient() {
   const showingAccountLoading = Boolean(accessToken) && (loadingAccount || (!me && !error));
 
   function resetChatSessionDetailState() {
+    setSelectedChatSessionId(null);
     setChatSessionDetail(null);
     setChatSessionDetailError(null);
     setChatSessionDetailLoading(false);
@@ -91,8 +93,7 @@ export function AccountClient() {
       setError(null);
       setMessage(null);
       setChatSessionsError(null);
-      setChatSessionDetail(null);
-      setChatSessionDetailError(null);
+      resetChatSessionDetailState();
       setLoadingAccount(true);
       try {
         const [profile, preferences] = await Promise.all([
@@ -107,7 +108,7 @@ export function AccountClient() {
         if (!cancelled) {
           setMe(null);
           setChatSessions([]);
-          setChatSessionDetail(null);
+          resetChatSessionDetailState();
           setError("로그인 상태를 확인하지 못했습니다. 다시 로그인해 주세요.");
         }
         return;
@@ -122,7 +123,7 @@ export function AccountClient() {
       } catch {
         if (!cancelled) {
           setChatSessions([]);
-          setChatSessionDetail(null);
+          resetChatSessionDetailState();
           setChatSessionsError("최근 대화 이력을 불러오지 못했습니다.");
         }
       }
@@ -148,6 +149,7 @@ export function AccountClient() {
       );
     };
 
+    setSelectedChatSessionId(sessionId);
     setChatSessionDetailLoading(true);
     setChatSessionDetailError(null);
     try {
@@ -288,18 +290,26 @@ export function AccountClient() {
                 <p className="mt-3 text-sm text-muted">저장된 대화 세션이 없습니다.</p>
               ) : (
                 <ul className="mt-3 divide-y divide-line border-y border-line">
-                  {chatSessions.slice(0, 5).map((session) => (
-                    <li key={session.session_id}>
-                      <button
-                        type="button"
-                        onClick={() => void loadChatSessionDetail(session.session_id)}
-                        className="block w-full py-3 text-left text-sm transition hover:bg-field focus:outline-none focus:shadow-focus"
-                      >
-                        <span className="block font-semibold text-ink">{session.title ?? session.session_id}</span>
-                        <span className="mt-1 block text-xs text-muted">{session.ticker ?? "종목 미지정"}</span>
-                      </button>
-                    </li>
-                  ))}
+                  {chatSessions.slice(0, 5).map((session) => {
+                    const isSelected = selectedChatSessionId === session.session_id;
+                    return (
+                      <li key={session.session_id}>
+                        <button
+                          type="button"
+                          aria-current={isSelected ? "true" : undefined}
+                          onClick={() => void loadChatSessionDetail(session.session_id)}
+                          className={`block w-full border-l-2 py-3 pl-3 pr-2 text-left text-sm transition focus:outline-none focus:shadow-focus ${
+                            isSelected
+                              ? "border-accent bg-field text-ink"
+                              : "border-transparent text-ink hover:bg-field"
+                          }`}
+                        >
+                          <span className="block font-semibold">{session.title ?? session.session_id}</span>
+                          <span className="mt-1 block text-xs text-muted">{session.ticker ?? "종목 미지정"}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
 
