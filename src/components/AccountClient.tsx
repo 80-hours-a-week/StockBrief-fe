@@ -473,10 +473,15 @@ function buildUserPreferences(
     notificationDigest: NotificationDigest;
   },
 ) {
+  const currentNotifications =
+    current.notifications && typeof current.notifications === "object"
+      ? (current.notifications as Record<string, unknown>)
+      : {};
   return {
     ...current,
     risk_profile: values.riskProfile,
     notifications: {
+      ...currentNotifications,
       email_enabled: values.notificationEmailEnabled,
       watchlist_digest: values.notificationDigest,
     },

@@ -257,6 +257,7 @@ describe("AccountClient", () => {
         notifications: {
           email_enabled: false,
           watchlist_digest: "off",
+          quiet_hours: { start: "22:00", end: "08:00" },
         },
       }),
     );
@@ -290,6 +291,7 @@ describe("AccountClient", () => {
         sectors: ["반도체"],
         risk_profile: "aggressive",
         notifications: {
+          quiet_hours: { start: "22:00", end: "08:00" },
           email_enabled: true,
           watchlist_digest: "weekly",
         },
