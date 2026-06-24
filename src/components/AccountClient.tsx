@@ -27,11 +27,16 @@ import type {
   UserChatSessionDetailResponse,
 } from "@/types/api";
 
+type NotificationDigest = "off" | "daily" | "weekly";
+
 export function AccountClient() {
   const [accessToken, setAccessToken] = useState<string | null>(() => readApiAuthToken());
   const [me, setMe] = useState<MeResponse | null>(null);
   const [nickname, setNickname] = useState("");
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
+  const [userPreferences, setUserPreferences] = useState<Record<string, unknown>>({});
+  const [notificationEmailEnabled, setNotificationEmailEnabled] = useState(false);
+  const [notificationDigest, setNotificationDigest] = useState<NotificationDigest>("off");
   const [chatSessions, setChatSessions] = useState<UserChatSession[]>([]);
   const [chatSessionsError, setChatSessionsError] = useState<string | null>(null);
   const [selectedChatSessionId, setSelectedChatSessionId] = useState<string | null>(null);
@@ -103,9 +108,14 @@ export function AccountClient() {
           getUserPreferences(token),
         ]);
         if (cancelled) return;
+        const preferenceValues = preferences.preferences;
+        const notificationPreferences = readNotificationPreferences(preferenceValues.notifications);
         setMe(profile);
         setNickname(profile.nickname ?? "");
-        setRiskProfile(readRiskProfile(preferences.preferences.risk_profile));
+        setUserPreferences(preferenceValues);
+        setRiskProfile(readRiskProfile(preferenceValues.risk_profile));
+        setNotificationEmailEnabled(notificationPreferences.emailEnabled);
+        setNotificationDigest(notificationPreferences.digest);
       } catch {
         if (!cancelled) {
           setMe(null);
@@ -178,10 +188,16 @@ export function AccountClient() {
       const updated = await patchMe(accessToken, { nickname: nickname.trim() || null });
       setMe(updated);
       try {
-        await putUserPreferences(accessToken, { risk_profile: riskProfile });
+        const preferences = buildUserPreferences(userPreferences, {
+          riskProfile,
+          notificationEmailEnabled,
+          notificationDigest,
+        });
+        const savedPreferences = await putUserPreferences(accessToken, preferences);
+        setUserPreferences(savedPreferences.preferences);
         setMessage("계정 설정을 저장했습니다.");
       } catch {
-        setError("닉네임은 저장됐지만 선호 리스크 저장에 실패했습니다.");
+        setError("닉네임은 저장됐지만 선호 설정 저장에 실패했습니다.");
       }
     } catch {
       setError("계정 설정 저장에 실패했습니다.");
@@ -273,6 +289,37 @@ export function AccountClient() {
                   <option value="aggressive">aggressive</option>
                 </select>
               </label>
+
+              <div className="border-y border-line py-4">
+                <h2 className="text-sm font-semibold text-ink">알림 설정</h2>
+                <label className="mt-3 flex items-start gap-3 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    checked={notificationEmailEnabled}
+                    onChange={(event) => setNotificationEmailEnabled(event.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-line text-accent focus:ring-accent"
+                  />
+                  <span>
+                    <span className="block font-medium">email 알림 받기</span>
+                    <span className="mt-1 block text-xs leading-5 text-muted">
+                      관심종목과 대화 이력 기준의 요약 알림을 받습니다.
+                    </span>
+                  </span>
+                </label>
+
+                <label className="mt-4 block">
+                  <span className="text-xs font-medium text-muted">관심종목 요약</span>
+                  <select
+                    value={notificationDigest}
+                    onChange={(event) => setNotificationDigest(readNotificationDigest(event.target.value))}
+                    className="mt-1 w-full rounded-md border border-line bg-field px-3 py-2 text-sm text-ink outline-none transition focus:bg-white focus:shadow-focus"
+                  >
+                    <option value="off">받지 않음</option>
+                    <option value="daily">매일</option>
+                    <option value="weekly">매주</option>
+                  </select>
+                </label>
+              </div>
 
               <button
                 type="button"
@@ -398,4 +445,40 @@ function readRiskProfile(value: unknown): RiskProfile {
     return value;
   }
   return "balanced";
+}
+
+function readNotificationPreferences(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return { emailEnabled: false, digest: "off" as NotificationDigest };
+  }
+  const preferences = value as Record<string, unknown>;
+  return {
+    emailEnabled: preferences.email_enabled === true,
+    digest: readNotificationDigest(preferences.watchlist_digest),
+  };
+}
+
+function readNotificationDigest(value: unknown): NotificationDigest {
+  if (value === "daily" || value === "weekly") {
+    return value;
+  }
+  return "off";
+}
+
+function buildUserPreferences(
+  current: Record<string, unknown>,
+  values: {
+    riskProfile: RiskProfile;
+    notificationEmailEnabled: boolean;
+    notificationDigest: NotificationDigest;
+  },
+) {
+  return {
+    ...current,
+    risk_profile: values.riskProfile,
+    notifications: {
+      email_enabled: values.notificationEmailEnabled,
+      watchlist_digest: values.notificationDigest,
+    },
+  };
 }
