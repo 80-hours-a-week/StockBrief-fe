@@ -13,7 +13,7 @@ import {
 import type { MeResponse, RiskProfile, UserChatSession } from "@/types/api";
 
 export function AccountClient() {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(() => readApiAuthToken());
   const [me, setMe] = useState<MeResponse | null>(null);
   const [nickname, setNickname] = useState("");
   const [riskProfile, setRiskProfile] = useState<RiskProfile>("balanced");
@@ -24,11 +24,10 @@ export function AccountClient() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const configured = isCognitoConfigured();
+  const showingAccountLoading = Boolean(accessToken) && (loadingAccount || (!me && !error));
 
   useEffect(() => {
-    const sync = () => setAccessToken(readApiAuthToken());
-    sync();
-    return subscribeAuthSession(sync);
+    return subscribeAuthSession(() => setAccessToken(readApiAuthToken()));
   }, []);
 
   useEffect(() => {
@@ -148,7 +147,7 @@ export function AccountClient() {
               이메일 회원가입
             </button>
           </div>
-        ) : loadingAccount ? (
+        ) : showingAccountLoading ? (
           <div className="mt-6 border-y border-line bg-field px-4 py-6 text-sm text-muted" role="status">
             계정 정보를 확인하는 중입니다.
           </div>

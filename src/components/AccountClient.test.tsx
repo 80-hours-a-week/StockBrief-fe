@@ -64,8 +64,9 @@ describe("AccountClient", () => {
 
     render(<AccountClient />);
 
-    expect((await screen.findByRole("status")).textContent).toBe("계정 정보를 확인하는 중입니다.");
+    expect(screen.getByRole("status").textContent).toBe("계정 정보를 확인하는 중입니다.");
     expect(screen.queryByText("표시할 email 없음")).toBeNull();
+    expect(screen.queryByText("계정 정보를 표시할 수 없습니다. 다시 로그인해 주세요.")).toBeNull();
 
     profileRequest.resolve(me());
 
