@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -111,6 +111,59 @@ describe("AccountClient", () => {
     expect(await screen.findByText("왜 검토 후보로 나왔나요?")).not.toBeNull();
     expect(screen.getByText("공개 데이터 기준 설명입니다.")).not.toBeNull();
     expect(screen.getByText("근거 1개")).not.toBeNull();
+  });
+
+  it("keeps only the latest selected chat session detail when requests finish out of order", async () => {
+    const firstRequest = deferred<UserChatSessionDetailResponse>();
+    const secondRequest = deferred<UserChatSessionDetailResponse>();
+    const secondSession = {
+      session_id: "chat-2",
+      ticker: "005380",
+      title: "현대차 설명",
+      created_at: "2026-06-24T10:00:00+09:00",
+      updated_at: "2026-06-24T10:30:00+09:00",
+    };
+
+    mockedGetUserChatSessions.mockResolvedValue({
+      count: 2,
+      items: [...chatSessions().items, secondSession],
+    });
+    mockedGetUserChatSessionDetail.mockImplementation((_token, sessionId) => {
+      if (sessionId === "chat-1") return firstRequest.promise;
+      return secondRequest.promise;
+    });
+
+    render(<AccountClient />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /삼성전자 설명/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /현대차 설명/ }));
+
+    await act(async () => {
+      secondRequest.resolve(
+        chatSessionDetail({
+          session: secondSession,
+          userContent: "현대차는 왜 선택됐나요?",
+          assistantContent: "현대차 최신 상세입니다.",
+        }),
+      );
+      await secondRequest.promise;
+    });
+
+    expect(await screen.findByText("현대차 최신 상세입니다.")).not.toBeNull();
+
+    await act(async () => {
+      firstRequest.resolve(
+        chatSessionDetail({
+          assistantContent: "삼성전자 늦은 상세입니다.",
+        }),
+      );
+      await firstRequest.promise;
+    });
+
+    expect(screen.getByText("현대차 최신 상세입니다.")).not.toBeNull();
+    expect(screen.queryByText("삼성전자 늦은 상세입니다.")).toBeNull();
+    expect(mockedGetUserChatSessionDetail).toHaveBeenNthCalledWith(1, "id-token", "chat-1");
+    expect(mockedGetUserChatSessionDetail).toHaveBeenNthCalledWith(2, "id-token", "chat-2");
   });
 
   it("keeps recent chat sessions visible when a selected session detail fails", async () => {
@@ -252,15 +305,21 @@ function chatSessions(): UserChatSessionListResponse {
   };
 }
 
-function chatSessionDetail(): UserChatSessionDetailResponse {
+function chatSessionDetail(
+  overrides: {
+    session?: UserChatSessionDetailResponse["session"];
+    userContent?: string;
+    assistantContent?: string;
+  } = {},
+): UserChatSessionDetailResponse {
   return {
-    session: chatSessions().items[0],
+    session: overrides.session ?? chatSessions().items[0],
     messages: [
       {
         message_id: "msg-user-1",
         role: "user",
-        content: "왜 검토 후보로 나왔나요?",
-        ticker: "005930",
+        content: overrides.userContent ?? "왜 검토 후보로 나왔나요?",
+        ticker: overrides.session?.ticker ?? "005930",
         citations: [],
         safety_flags: [],
         created_at: "2026-06-24T09:30:00+09:00",
@@ -268,8 +327,8 @@ function chatSessionDetail(): UserChatSessionDetailResponse {
       {
         message_id: "msg-assistant-1",
         role: "assistant",
-        content: "공개 데이터 기준 설명입니다.",
-        ticker: "005930",
+        content: overrides.assistantContent ?? "공개 데이터 기준 설명입니다.",
+        ticker: overrides.session?.ticker ?? "005930",
         citations: [{ evidence_id: "ev-1" }],
         safety_flags: [],
         created_at: "2026-06-24T09:30:01+09:00",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   getMe,
@@ -39,12 +39,41 @@ export function AccountClient() {
   const [savingAccount, setSavingAccount] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const accessTokenRef = useRef(accessToken);
+  const chatSessionDetailRequestRef = useRef<{
+    requestId: number;
+    sessionId: string | null;
+    token: string | null;
+  }>({ requestId: 0, sessionId: null, token: null });
   const configured = isCognitoConfigured();
   const showingAccountLoading = Boolean(accessToken) && (loadingAccount || (!me && !error));
 
   useEffect(() => {
-    return subscribeAuthSession(() => setAccessToken(readApiAuthToken()));
+    return subscribeAuthSession(() => {
+      const nextToken = readApiAuthToken();
+      accessTokenRef.current = nextToken;
+      chatSessionDetailRequestRef.current = {
+        requestId: chatSessionDetailRequestRef.current.requestId + 1,
+        sessionId: null,
+        token: nextToken,
+      };
+      if (!nextToken) {
+        setChatSessionDetail(null);
+        setChatSessionDetailError(null);
+        setChatSessionDetailLoading(false);
+      }
+      setAccessToken(nextToken);
+    });
   }, []);
+
+  useEffect(() => {
+    accessTokenRef.current = accessToken;
+    chatSessionDetailRequestRef.current = {
+      requestId: chatSessionDetailRequestRef.current.requestId + 1,
+      sessionId: null,
+      token: accessToken,
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -102,15 +131,32 @@ export function AccountClient() {
 
   async function loadChatSessionDetail(sessionId: string, token = accessToken) {
     if (!token) return;
+    const requestId = chatSessionDetailRequestRef.current.requestId + 1;
+    chatSessionDetailRequestRef.current = { requestId, sessionId, token };
+    const isCurrentRequest = () => {
+      const currentRequest = chatSessionDetailRequestRef.current;
+      return (
+        currentRequest.requestId === requestId &&
+        currentRequest.sessionId === sessionId &&
+        currentRequest.token === token &&
+        accessTokenRef.current === token
+      );
+    };
+
     setChatSessionDetailLoading(true);
     setChatSessionDetailError(null);
     try {
-      setChatSessionDetail(await getUserChatSessionDetail(token, sessionId));
+      const detail = await getUserChatSessionDetail(token, sessionId);
+      if (!isCurrentRequest()) return;
+      setChatSessionDetail(detail);
     } catch {
+      if (!isCurrentRequest()) return;
       setChatSessionDetail(null);
       setChatSessionDetailError("대화 내용을 불러오지 못했습니다.");
     } finally {
-      setChatSessionDetailLoading(false);
+      if (isCurrentRequest()) {
+        setChatSessionDetailLoading(false);
+      }
     }
   }
 
