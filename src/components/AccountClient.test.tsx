@@ -1,7 +1,14 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getMe, getUserChatSessions, getUserPreferences, patchMe, putUserPreferences } from "@/lib/api";
+import {
+  getMe,
+  getUserChatSessionDetail,
+  getUserChatSessions,
+  getUserPreferences,
+  patchMe,
+  putUserPreferences,
+} from "@/lib/api";
 import {
   clearAuthSession,
   isCognitoConfigured,
@@ -9,12 +16,18 @@ import {
   startCognitoAuth,
   subscribeAuthSession,
 } from "@/lib/cognito-auth";
-import type { MeResponse, UserChatSessionListResponse, UserPreferencesResponse } from "@/types/api";
+import type {
+  MeResponse,
+  UserChatSessionDetailResponse,
+  UserChatSessionListResponse,
+  UserPreferencesResponse,
+} from "@/types/api";
 
 import { AccountClient } from "./AccountClient";
 
 vi.mock("@/lib/api", () => ({
   getMe: vi.fn(),
+  getUserChatSessionDetail: vi.fn(),
   getUserChatSessions: vi.fn(),
   getUserPreferences: vi.fn(),
   patchMe: vi.fn(),
@@ -32,6 +45,7 @@ vi.mock("@/lib/cognito-auth", () => ({
 const mockedGetMe = vi.mocked(getMe);
 const mockedGetUserPreferences = vi.mocked(getUserPreferences);
 const mockedGetUserChatSessions = vi.mocked(getUserChatSessions);
+const mockedGetUserChatSessionDetail = vi.mocked(getUserChatSessionDetail);
 const mockedPatchMe = vi.mocked(patchMe);
 const mockedPutUserPreferences = vi.mocked(putUserPreferences);
 const mockedClearAuthSession = vi.mocked(clearAuthSession);
@@ -49,6 +63,7 @@ describe("AccountClient", () => {
     mockedGetMe.mockResolvedValue(me());
     mockedGetUserPreferences.mockResolvedValue(preferences("balanced"));
     mockedGetUserChatSessions.mockResolvedValue(chatSessions());
+    mockedGetUserChatSessionDetail.mockResolvedValue(chatSessionDetail());
     mockedPatchMe.mockResolvedValue(me({ nickname: "새별" }));
     mockedPutUserPreferences.mockResolvedValue(preferences("aggressive"));
   });
@@ -85,6 +100,28 @@ describe("AccountClient", () => {
     expect(mockedGetMe).toHaveBeenCalledWith("id-token");
     expect(mockedGetUserPreferences).toHaveBeenCalledWith("id-token");
     expect(mockedGetUserChatSessions).toHaveBeenCalledWith("id-token");
+  });
+
+  it("loads a selected recent chat session detail", async () => {
+    render(<AccountClient />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /삼성전자 설명/ }));
+
+    expect(mockedGetUserChatSessionDetail).toHaveBeenCalledWith("id-token", "chat-1");
+    expect(await screen.findByText("왜 검토 후보로 나왔나요?")).not.toBeNull();
+    expect(screen.getByText("공개 데이터 기준 설명입니다.")).not.toBeNull();
+    expect(screen.getByText("근거 1개")).not.toBeNull();
+  });
+
+  it("keeps recent chat sessions visible when a selected session detail fails", async () => {
+    mockedGetUserChatSessionDetail.mockRejectedValue(new Error("detail failed"));
+
+    render(<AccountClient />);
+
+    fireEvent.click(await screen.findByRole("button", { name: /삼성전자 설명/ }));
+
+    expect(await screen.findByText("대화 내용을 불러오지 못했습니다.")).not.toBeNull();
+    expect(screen.getByRole("button", { name: /삼성전자 설명/ })).not.toBeNull();
   });
 
   it("keeps the account form available when only recent chat sessions fail", async () => {
@@ -210,6 +247,32 @@ function chatSessions(): UserChatSessionListResponse {
         title: "삼성전자 설명",
         created_at: "2026-06-24T09:00:00+09:00",
         updated_at: "2026-06-24T09:30:00+09:00",
+      },
+    ],
+  };
+}
+
+function chatSessionDetail(): UserChatSessionDetailResponse {
+  return {
+    session: chatSessions().items[0],
+    messages: [
+      {
+        message_id: "msg-user-1",
+        role: "user",
+        content: "왜 검토 후보로 나왔나요?",
+        ticker: "005930",
+        citations: [],
+        safety_flags: [],
+        created_at: "2026-06-24T09:30:00+09:00",
+      },
+      {
+        message_id: "msg-assistant-1",
+        role: "assistant",
+        content: "공개 데이터 기준 설명입니다.",
+        ticker: "005930",
+        citations: [{ evidence_id: "ev-1" }],
+        safety_flags: [],
+        created_at: "2026-06-24T09:30:01+09:00",
       },
     ],
   };
