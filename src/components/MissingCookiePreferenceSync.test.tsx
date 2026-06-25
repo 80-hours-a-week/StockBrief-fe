@@ -9,7 +9,6 @@ import { MissingCookiePreferenceSync } from "./MissingCookiePreferenceSync";
 const mockReplace = vi.fn();
 const mockRefresh = vi.fn();
 const mockHas = vi.fn();
-const mockSet = vi.fn();
 const mockToString = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -49,7 +48,7 @@ describe("MissingCookiePreferenceSync", () => {
     mockedReadApiAuthToken.mockReturnValue("test-token");
     mockedGetUserPreferences.mockResolvedValue({
       preferences: { risk_profile: "aggressive" },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getUserPreferences>>);
   });
 
   afterEach(() => {
@@ -76,7 +75,7 @@ describe("MissingCookiePreferenceSync", () => {
   it("calls refresh if preference is balanced", async () => {
     mockedGetUserPreferences.mockResolvedValue({
       preferences: { risk_profile: "balanced" },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof getUserPreferences>>);
     render(<MissingCookiePreferenceSync hasCookie={false} />);
     
     await waitFor(() => {
