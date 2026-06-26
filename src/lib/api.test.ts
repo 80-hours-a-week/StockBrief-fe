@@ -147,6 +147,28 @@ describe("chat API adapters", () => {
     ]);
     expect(response.used_evidence_ids).toEqual(["ev_005930_disclosure"]);
   });
+
+  it("preserves authenticated chat message ids for persisted session tracing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse(
+          chatContractResponse({
+            session_id: "chat-session-1",
+            message_id: "msg-assistant-1",
+          }),
+        ),
+      ),
+    );
+
+    const response = await postAuthenticatedChat("id-token", {
+      ticker: "005930",
+      message: "근거를 설명해줘",
+    });
+
+    expect(response.session_id).toBe("chat-session-1");
+    expect(response.message_id).toBe("msg-assistant-1");
+  });
 });
 
 function jsonResponse(body: unknown): Response {
