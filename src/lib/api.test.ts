@@ -1,6 +1,43 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { postAuthenticatedChat, postChat } from "./api";
+import { getRecommendationCandidate, postAuthenticatedChat, postChat } from "./api";
+
+describe("candidate API adapters", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("loads detail data from the public stock candidate endpoint", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          ticker: "005930",
+          name: "삼성전자",
+          market: "KOSPI",
+          sector: "반도체",
+          recommendation_score: 78.5,
+          score_components: [],
+          recommendation_reasons: [],
+          risk_tags: [],
+          evidence_level: "medium",
+          evidence_count: 2,
+          missing_data: [],
+          data_freshness: { as_of: "2026-06-09" },
+          disclaimer: "공개 데이터 기반 검토 후보입니다.",
+        }),
+      ),
+    );
+
+    const candidate = await getRecommendationCandidate("005930");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/stocks/candidates/005930",
+      expect.any(Object),
+    );
+    expect(candidate.ticker).toBe("005930");
+  });
+});
 
 describe("chat API adapters", () => {
   afterEach(() => {
