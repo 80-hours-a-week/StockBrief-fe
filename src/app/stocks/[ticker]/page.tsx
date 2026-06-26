@@ -84,7 +84,7 @@ export default async function StockPage({ params }: StockPageProps) {
             <div className="mt-2 text-sm font-semibold text-ink">{dataAsOf}</div>
           </div>
           <div className="border-y border-line py-4">
-            <div className="text-xs font-medium text-muted">missing data</div>
+            <div className="text-xs font-medium text-muted">누락 데이터</div>
             <div className="mt-2 text-sm font-semibold text-ink">{missingData.summary}</div>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default async function StockPage({ params }: StockPageProps) {
               <article key={reason.reason_id} className="border-l-2 border-accent pl-4">
                 <h3 className="text-sm font-semibold text-ink">{componentLabel(reason.component)}</h3>
                 <p className="mt-1 text-sm leading-6 text-muted">{reason.summary}</p>
-                <p className="mt-2 text-xs text-muted">evidence: {reason.evidence_ids.join(", ")}</p>
+                <p className="mt-2 text-xs text-muted">근거 ID: {reason.evidence_ids.join(", ")}</p>
               </article>
             ))}
           </div>
@@ -116,14 +116,14 @@ export default async function StockPage({ params }: StockPageProps) {
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-ink">점수 breakdown</h2>
+          <h2 className="text-xl font-semibold text-ink">점수 구성</h2>
           <div className="mt-4 divide-y divide-line border-y border-line bg-white">
             {scoreComponents.map((component) => (
               <div key={component.name} className="grid grid-cols-[1fr_auto] gap-4 px-4 py-3">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="font-medium text-ink">{componentLabel(component.name)}</div>
-                    <span className="text-xs text-muted">weight {component.weight}</span>
+                    <span className="text-xs text-muted">비중 {component.weight}</span>
                   </div>
                   <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-line">
                     <div
@@ -144,7 +144,7 @@ export default async function StockPage({ params }: StockPageProps) {
 
       <section className="grid gap-8 border-t border-line py-8 lg:grid-cols-[0.9fr_1.1fr]">
         <div>
-          <h2 className="text-xl font-semibold text-ink">리스크/확인 필요 사항</h2>
+          <h2 className="text-xl font-semibold text-ink">리스크와 확인할 점</h2>
           <div className="mt-4 space-y-3">
             <div className="flex flex-wrap gap-2">
               {riskTags.map((tag) => (
@@ -152,9 +152,9 @@ export default async function StockPage({ params }: StockPageProps) {
               ))}
             </div>
             <div className="border-y border-line py-4">
-              <h3 className="text-sm font-semibold text-ink">missing data</h3>
+              <h3 className="text-sm font-semibold text-ink">누락 데이터</h3>
               {missingData.items.length === 0 ? (
-                <p className="mt-2 text-sm text-muted">현재 응답에서 누락 데이터가 표시되지 않았습니다.</p>
+                <p className="mt-2 text-sm text-muted">현재 확인할 누락 데이터가 표시되지 않았습니다.</p>
               ) : (
                 <ul className="mt-2 space-y-1 text-sm text-muted">
                   {missingData.items.map((item) => (
@@ -184,8 +184,8 @@ export default async function StockPage({ params }: StockPageProps) {
       <section className="border-t border-line py-8">
         <div className="mb-4 flex items-end justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-ink">공시/뉴스/재무/가격 evidence 리스트</h2>
-            <p className="mt-1 text-sm text-muted">추천 이유와 AI 설명에 연결되는 근거 ID를 확인합니다.</p>
+            <h2 className="text-xl font-semibold text-ink">공시·뉴스·재무·가격 근거</h2>
+            <p className="mt-1 text-sm text-muted">추천 이유와 AI 설명에 연결되는 근거를 확인합니다.</p>
           </div>
           <span className="text-sm text-muted">기준일 {dataAsOf}</span>
         </div>
@@ -196,27 +196,32 @@ export default async function StockPage({ params }: StockPageProps) {
         ) : (
           <div className="divide-y divide-line border-y border-line bg-white">
             {evidence.evidence.map((item) => (
-            <article key={item.id} className="px-4 py-4">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                <span className="font-semibold text-accent">{evidenceTypeLabel(item.type)}</span>
-                <span>{item.source_name}</span>
-                <span>{evidenceStatusLabel(item.data_status)}</span>
-              </div>
-              <h3 className="mt-2 font-semibold text-ink">{item.title}</h3>
-              <p className="mt-1 text-sm leading-6 text-muted">{item.summary}</p>
-              <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
-                <span>id: {item.id}</span>
-                <span>published: {formatDate(item.published_at)}</span>
-                <span>as of: {formatDate(item.as_of_date)}</span>
-                {item.source_url ? (
-                  <a href={item.source_url} className="font-semibold text-accent" rel="noreferrer">
-                    source
-                  </a>
-                ) : (
-                  <span>source id: {item.source_identifier ?? "확인 필요"}</span>
-                )}
-              </div>
-            </article>
+              <article key={item.id} className="px-4 py-4">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <span className="font-semibold text-accent">{evidenceTypeLabel(item.type)}</span>
+                  <span>{item.source_name}</span>
+                  <span>{evidenceStatusLabel(item.data_status)}</span>
+                </div>
+                <h3 className="mt-2 font-semibold text-ink">{item.title}</h3>
+                <p className="mt-1 text-sm leading-6 text-muted">{item.summary}</p>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
+                  <span>근거 ID: {item.id}</span>
+                  <span>발행일: {formatDate(item.published_at)}</span>
+                  <span>기준일: {formatDate(item.as_of_date)}</span>
+                  {item.source_url ? (
+                    <a
+                      href={item.source_url}
+                      className="font-semibold text-accent"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      원문 보기
+                    </a>
+                  ) : (
+                    <span>출처 ID: {item.source_identifier ?? "확인 필요"}</span>
+                  )}
+                </div>
+              </article>
             ))}
           </div>
         )}
@@ -293,9 +298,9 @@ function formatMissingData(value: unknown[]) {
 
 function evidenceStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    available: "available",
-    fallback: "fallback",
-    missing: "missing",
+    available: "확인됨",
+    fallback: "대체 데이터",
+    missing: "누락",
   };
   return labels[status] ?? status;
 }
