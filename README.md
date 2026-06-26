@@ -30,6 +30,23 @@ cp .env.example .env.local
 # NEXT_PUBLIC_API_BASE_URL 등 설정
 ```
 
+BE Terraform dev stack이 준비된 뒤에는 현재 AWS 계정의 출력값으로 로컬
+환경변수를 다시 생성할 수 있다. 이 명령은 public FE 환경변수만 쓰며
+API key, token, secret 값은 다루지 않는다.
+
+```bash
+npm run sync:dev-env -- --terraform-dir ../StockBrief-be/infra/terraform
+```
+
+기본 callback은 `http://localhost:3001/auth/callback`이다. 다른 포트로
+로컬 서버를 띄울 때는 Cognito callback allowlist에 포함된 값으로 명시한다.
+
+```bash
+npm run sync:dev-env -- \
+  --terraform-dir ../StockBrief-be/infra/terraform \
+  --redirect-uri http://localhost:3000/auth/callback
+```
+
 ## 개발 서버 실행
 
 ```bash
