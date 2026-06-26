@@ -19,6 +19,7 @@ import {
   updateWatchlistMemo,
 } from "@/lib/watchlist-storage";
 import { formatDate } from "@/lib/format";
+import { formatWatchlistSyncMessage } from "@/lib/watchlist-sync-message";
 import type { ServerWatchlistItem } from "@/types/api";
 import type { WatchlistItem } from "@/types/watchlist";
 
@@ -64,7 +65,7 @@ export function WatchlistClient() {
         const me = await getMe(token);
         const imported = await importLocalWatchlistOnce(token, me);
         if (cancelled) return;
-        setSyncMessage(watchlistSyncMessage(imported));
+        setSyncMessage(formatWatchlistSyncMessage(imported));
       } catch {
         if (!cancelled) {
           setError("서버 관심종목을 불러오지 못했습니다. 게스트 목록은 이 브라우저에 유지됩니다.");
@@ -208,30 +209,6 @@ export function WatchlistClient() {
       </div>
     </div>
   );
-}
-
-function watchlistSyncMessage({
-  importedCount,
-  skippedExistingCount,
-  alreadySynced,
-}: {
-  importedCount: number;
-  skippedExistingCount: number;
-  alreadySynced: boolean;
-}): string {
-  if (alreadySynced) {
-    return "이미 이 계정으로 관심종목 동기화를 완료했습니다.";
-  }
-  if (importedCount > 0 && skippedExistingCount > 0) {
-    return `로컬 관심종목 ${importedCount}개를 서버에 병합했고 ${skippedExistingCount}개는 이미 저장되어 있습니다.`;
-  }
-  if (importedCount > 0) {
-    return `로컬 관심종목 ${importedCount}개를 서버에 병합했습니다.`;
-  }
-  if (skippedExistingCount > 0) {
-    return "로컬 관심종목은 이미 서버에 저장되어 있습니다.";
-  }
-  return "서버 관심종목과 동기화되었습니다.";
 }
 
 function serverToLocalItem(item: ServerWatchlistItem): WatchlistItem {

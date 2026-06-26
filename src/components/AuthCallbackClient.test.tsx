@@ -76,10 +76,51 @@ describe("AuthCallbackClient", () => {
 
     expect(mockedGetMe).toHaveBeenCalledWith("id-token");
     expect(mockedImportLocalWatchlistOnce).toHaveBeenCalledWith("id-token", me());
-    expect(await screen.findByText(/로컬 관심종목 2개를 서버와 병합했습니다/)).not.toBeNull();
+    expect(await screen.findByText(/로컬 관심종목 2개를 서버에 병합했습니다/)).not.toBeNull();
     expect(screen.getByRole("link", { name: "관심종목으로 이동" }).getAttribute("href")).toBe(
       "/watchlist",
     );
+  });
+
+  it("shows imported and already-existing counts after callback sync", async () => {
+    mockedImportLocalWatchlistOnce.mockResolvedValue({
+      importedCount: 1,
+      skippedExistingCount: 2,
+      items: [],
+      alreadySynced: false,
+    });
+
+    render(<AuthCallbackClient code="auth-code" state="auth-state" />);
+
+    expect(
+      await screen.findByText(/로컬 관심종목 1개를 서버에 병합했고 2개는 이미 저장되어 있습니다/),
+    ).not.toBeNull();
+  });
+
+  it("shows skipped-only callback sync without implying a new import", async () => {
+    mockedImportLocalWatchlistOnce.mockResolvedValue({
+      importedCount: 0,
+      skippedExistingCount: 2,
+      items: [],
+      alreadySynced: false,
+    });
+
+    render(<AuthCallbackClient code="auth-code" state="auth-state" />);
+
+    expect(await screen.findByText(/로컬 관심종목은 이미 서버에 저장되어 있습니다/)).not.toBeNull();
+  });
+
+  it("shows already-synced callback state without implying a new import", async () => {
+    mockedImportLocalWatchlistOnce.mockResolvedValue({
+      importedCount: 0,
+      skippedExistingCount: 0,
+      items: [],
+      alreadySynced: true,
+    });
+
+    render(<AuthCallbackClient code="auth-code" state="auth-state" />);
+
+    expect(await screen.findByText(/이미 이 계정으로 관심종목 동기화를 완료했습니다/)).not.toBeNull();
   });
 
   it("keeps the user signed in when only watchlist sync fails", async () => {
@@ -94,7 +135,7 @@ describe("AuthCallbackClient", () => {
     render(<AuthCallbackClient code="auth-code" state="auth-state" />);
 
     expect(
-      await screen.findByText(/로그인은 완료되었지만 로컬 관심종목을 서버와 병합하지 못했습니다/),
+      await screen.findByText(/로그인은 완료되었지만 로컬 관심종목을 서버에 병합하지 못했습니다/),
     ).not.toBeNull();
     expect(screen.getByRole("link", { name: "계정으로 이동" }).getAttribute("href")).toBe(
       "/account",

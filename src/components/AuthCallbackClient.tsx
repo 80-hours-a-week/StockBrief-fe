@@ -8,16 +8,12 @@ import { logClientError } from "@/lib/client-telemetry";
 import type { ClientTelemetryStage } from "@/lib/client-telemetry";
 import { completeCognitoCallback, readApiAuthToken } from "@/lib/cognito-auth";
 import { importLocalWatchlistOnce } from "@/lib/server-watchlist-store";
+import { formatWatchlistSyncMessage } from "@/lib/watchlist-sync-message";
+import type { WatchlistSyncMessageInput } from "@/lib/watchlist-sync-message";
 import { clearRiskProfileCookie, setRiskProfileCookie } from "@/lib/preference-cookie";
 import { readRiskProfile } from "@/lib/risk-profile";
 
 type CallbackStatus = "loading" | "done" | "profile-error" | "sync-error" | "error";
-
-interface SyncSummary {
-  importedCount: number;
-  skippedExistingCount: number;
-  alreadySynced: boolean;
-}
 
 function logAuthCallbackFailure(stage: ClientTelemetryStage, error: unknown): void {
   logClientError("Auth callback flow failed.", error, { stage });
@@ -31,7 +27,7 @@ export function AuthCallbackClient({
   state: string | null;
 }) {
   const [status, setStatus] = useState<CallbackStatus>(code && state ? "loading" : "error");
-  const [syncSummary, setSyncSummary] = useState<SyncSummary | null>(null);
+  const [syncSummary, setSyncSummary] = useState<WatchlistSyncMessageInput | null>(null);
 
   useEffect(() => {
     if (!code || !state) {
@@ -62,7 +58,7 @@ export function AuthCallbackClient({
       try {
         const [profileResponse, preferencesResponse] = await Promise.all([
           getMe(token),
-          getUserPreferences(token).catch(() => null)
+          getUserPreferences(token).catch(() => null),
         ]);
         me = profileResponse;
         if (preferencesResponse) {
@@ -108,7 +104,7 @@ export function AuthCallbackClient({
         {status === "done" ? (
           <>
             <p className="mt-3 text-sm leading-6 text-muted">
-              로그인이 완료되었습니다. {syncMessage(syncSummary)}
+              로그인이 완료되었습니다. {formatWatchlistSyncMessage(syncSummary)}
             </p>
             <Link
               href="/watchlist"
@@ -135,7 +131,7 @@ export function AuthCallbackClient({
         {status === "sync-error" ? (
           <>
             <p className="mt-3 text-sm leading-6 text-muted">
-              로그인은 완료되었지만 로컬 관심종목을 서버와 병합하지 못했습니다. 계정 화면에서 로그인 상태를 확인한 뒤
+              로그인은 완료되었지만 로컬 관심종목을 서버에 병합하지 못했습니다. 계정 화면에서 로그인 상태를 확인한 뒤
               관심종목 화면에서 다시 동기화할 수 있습니다.
             </p>
             <Link
@@ -162,16 +158,4 @@ export function AuthCallbackClient({
       </section>
     </div>
   );
-}
-
-function syncMessage(summary: SyncSummary | null): string {
-  if (!summary) return "관심종목 동기화 상태를 확인했습니다.";
-  if (summary.alreadySynced) return "이미 이 계정으로 관심종목 동기화를 완료했습니다.";
-  if (summary.importedCount > 0) {
-    return `로컬 관심종목 ${summary.importedCount}개를 서버와 병합했습니다.`;
-  }
-  if (summary.skippedExistingCount > 0) {
-    return "로컬 관심종목은 이미 서버에 저장되어 있습니다.";
-  }
-  return "서버 관심종목과 동기화되었습니다.";
 }
