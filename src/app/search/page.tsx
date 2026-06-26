@@ -11,16 +11,22 @@ type SearchPageProps = {
 export default async function SearchPage({ searchParams }: SearchPageProps) {
   const params = await searchParams;
   const query = readQuery(params.q);
-  let results: Awaited<ReturnType<typeof searchStocks>>;
+  let results: Awaited<ReturnType<typeof searchStocks>> = {
+    query,
+    count: 0,
+    items: [],
+  };
 
-  try {
-    results = await searchStocks(query, 20);
-  } catch {
-    return (
-      <div className="mx-auto max-w-5xl px-5 py-8">
-        <ErrorState href="/" />
-      </div>
-    );
+  if (query) {
+    try {
+      results = await searchStocks(query, 20);
+    } catch {
+      return (
+        <div className="mx-auto max-w-5xl px-5 py-8">
+          <ErrorState href="/" />
+        </div>
+      );
+    }
   }
 
   return (
@@ -55,7 +61,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
       <section>
         <div className="mb-3 text-sm text-muted">
-          {query ? `"${query}" 검색 결과 ${results.count}개` : `전체 종목 ${results.count}개`}
+          {query ? `"${query}" 검색 결과 ${results.count}개` : "검색어를 입력해 주세요"}
         </div>
         <StockSearchResults query={query} items={results.items} />
       </section>
