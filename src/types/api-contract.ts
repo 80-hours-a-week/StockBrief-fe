@@ -87,6 +87,7 @@ export type StockEvidenceContractResponse = ApiEnvelope<{
 
 export type ChatContractResponse = ApiEnvelope<{
   session_id: string;
+  message_id?: string | null;
   answer: string;
   citations: Array<{
     id: string;
