@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { postAuthenticatedChat, postChat } from "./api";
+import { postAuthenticatedChat, postChat, searchStocks } from "./api";
 
 describe("chat API adapters", () => {
   afterEach(() => {
@@ -146,6 +146,65 @@ describe("chat API adapters", () => {
       },
     ]);
     expect(response.used_evidence_ids).toEqual(["ev_005930_disclosure"]);
+  });
+});
+
+describe("stock search API adapter", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("calls the stock search endpoint with encoded query and limit", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          success: true,
+          message: "ok",
+          request_id: "req-search",
+          data: {
+            items: [
+              {
+                ticker: "005930",
+                name: "삼성전자",
+                market: "KOSPI",
+                sector: "전기전자",
+                corp_code: "00126380",
+                match_reason: "name",
+              },
+            ],
+            pagination: {
+              limit: 10,
+              offset: 0,
+              total: 1,
+              has_more: false,
+            },
+          },
+        }),
+      ),
+    );
+
+    const response = await searchStocks("삼성 전자", 10);
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/stocks/search?q=%EC%82%BC%EC%84%B1+%EC%A0%84%EC%9E%90&limit=10",
+      expect.objectContaining({
+        cache: "no-store",
+      }),
+    );
+    expect(response).toEqual({
+      query: "삼성 전자",
+      count: 1,
+      items: [
+        {
+          ticker: "005930",
+          name: "삼성전자",
+          market: "KOSPI",
+          sector: "전기전자",
+          industry: null,
+        },
+      ],
+    });
   });
 });
 
