@@ -81,8 +81,8 @@ Public MVP endpoints remain available without authentication:
 - `GET /v1/health`
 - `GET /v1/meta/service-policy`
 - `GET /v1/stocks/search`
-- `GET /v1/recommendations/candidates`
-- `GET /v1/recommendations/candidates/{ticker}`
+- `GET /v1/stocks/candidates`
+- `GET /v1/stocks/candidates/{ticker}`
 - `GET /v1/stocks/{ticker}`
 - `GET /v1/stocks/{ticker}/evidence`
 - `GET /v1/stocks/{ticker}/score`
@@ -158,7 +158,7 @@ Response `200`:
 }
 ```
 
-### GET /v1/recommendations/candidates
+### GET /v1/stocks/candidates
 
 Returns recommendation candidates that pass the evidence gate.
 
@@ -224,7 +224,7 @@ Response `200`:
 }
 ```
 
-### GET /v1/recommendations/candidates/{ticker}
+### GET /v1/stocks/candidates/{ticker}
 
 Returns full recommendation detail for one ticker.
 
@@ -471,7 +471,7 @@ Candidate list inclusion requires:
 - `data_freshness.as_of` is present
 - `missing_data` is present, even when empty
 
-If any check fails, the ticker is excluded from `GET /v1/recommendations/candidates` and its detail response must show `is_candidate_eligible: false`.
+If any check fails, the ticker is excluded from `GET /v1/stocks/candidates` and its detail response must show `is_candidate_eligible: false`.
 
 ## 6. Score Components
 
