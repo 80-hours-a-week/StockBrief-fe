@@ -388,7 +388,7 @@ function toChatResponse(response: ChatContractResponse): ChatResponse {
   const safetyDisclaimer = (safety?.disclaimer ?? "").trim();
   return {
     session_id: response.data.session_id,
-    message_id: null,
+    message_id: response.data.message_id ?? null,
     answer: response.data.answer,
     citations: response.data.citations.map((citation) => ({
       evidence_id: citation.id,
