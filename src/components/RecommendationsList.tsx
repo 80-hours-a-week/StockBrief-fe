@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { CandidateTable } from "@/components/CandidateTable";
 import { ErrorState } from "@/components/ErrorState";
 import { getRecommendationCandidates } from "@/lib/api";
+import { riskProfileLabel } from "@/lib/format";
 import { riskProfileQueryValue } from "@/lib/risk-profile";
 
 type RecommendationsListProps = {
@@ -46,7 +47,7 @@ export async function RecommendationsList({ searchParams }: RecommendationsListP
           </p>
         </div>
         <div className="text-sm text-muted">
-          성향: {candidates.risk_profile} · 후보 {candidates.count}개
+          성향: {riskProfileLabel(candidates.risk_profile)} · 후보 {candidates.count}개
         </div>
       </section>
       <CandidateTable items={candidates.items} />

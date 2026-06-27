@@ -77,7 +77,7 @@ export function CandidateCard({ candidate }: { candidate: RecommendationCandidat
               <dd className="mt-1 font-semibold text-ink">{asOf}</dd>
             </div>
             <div>
-              <dt className="text-xs font-medium text-muted">missing data</dt>
+              <dt className="text-xs font-medium text-muted">누락 데이터</dt>
               <dd className="mt-1 font-semibold text-ink">{missingData}</dd>
             </div>
           </dl>
