@@ -19,7 +19,7 @@
 - [ ] 수동 확인
 
 테스트 명령 및 결과:
-<!-- 예: npm run lint 통과 / npm run typecheck 통과 / npm run build 통과 / 문서 변경만으로 테스트 미실행 -->
+<!-- 예: pnpm run lint 통과 / pnpm run typecheck 통과 / pnpm run build 통과 / 문서 변경만으로 테스트 미실행 -->
 -
 
 ## 리스크 및 영향도

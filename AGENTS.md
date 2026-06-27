@@ -113,9 +113,9 @@ The product recommends stocks as candidates for further user review based on pub
 ## CI Commands
 
 ```bash
-npm run lint
-npm run typecheck
-npm run build
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 ```
 
 ## Definition Of Done
@@ -123,9 +123,9 @@ npm run build
 A task is done only when:
 
 1. Every requested deliverable exists.
-2. `npm run lint` passes.
-3. `npm run typecheck` passes.
-4. `npm run build` succeeds.
+2. `pnpm run lint` passes.
+3. `pnpm run typecheck` passes.
+4. `pnpm run build` succeeds.
 5. No prohibited financial wording appears in user-facing copy.
 6. New environment variables are added to `.env.example`.
 7. Remaining limitations or skipped verification are stated in the final response.

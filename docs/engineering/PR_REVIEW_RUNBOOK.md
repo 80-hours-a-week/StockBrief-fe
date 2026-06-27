@@ -118,7 +118,7 @@ Approve는 다음 조건을 모두 만족할 때만 한다.
 - PR template의 요약, 배경, 주요 변경 사항, 테스트, 리스크, 롤백 계획이 채워져 있다.
 - Codex 리뷰에 남은 P0/P1 이슈가 없다.
 - CI checks가 성공했거나, 실패한 항목의 이유와 예외 판단이 PR thread에 기록되어 있다.
-- 프론트엔드 변경은 `npm run lint`, `npm run typecheck`, `npm run build` 또는 변경 범위에 맞는 좁은 검증 명령을 통과했다.
+- 프론트엔드 변경은 `pnpm run lint`, `pnpm run typecheck`, `pnpm run build` 또는 변경 범위에 맞는 좁은 검증 명령을 통과했다.
 - API 계약 변경은 `src/types/api.ts`와 관련 문서에 반영되어 있으며 BE 영향이 PR에 기록되어 있다.
 - 비밀값, credentials, private data가 포함되지 않았다.
 - 금융 문구 정책과 추천 후보 표현 규칙을 위반하지 않는다.
