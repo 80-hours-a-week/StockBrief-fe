@@ -109,7 +109,7 @@ describe("AccountClient", () => {
 
     expect(await screen.findByText("user@example.com")).not.toBeNull();
     expect((screen.getByLabelText("닉네임") as HTMLInputElement).value).toBe("기존닉네임");
-    expect((screen.getByLabelText("선호 리스크") as HTMLSelectElement).value).toBe("conservative");
+    expect((screen.getByLabelText("리스크 성향") as HTMLSelectElement).value).toBe("conservative");
     expect(screen.getByRole("option", { name: "안정형" })).not.toBeNull();
     expect(screen.getByRole("option", { name: "균형형" })).not.toBeNull();
     expect(screen.getByRole("option", { name: "적극형" })).not.toBeNull();
@@ -272,7 +272,7 @@ describe("AccountClient", () => {
 
     const nicknameInput = await screen.findByLabelText("닉네임");
     fireEvent.change(nicknameInput, { target: { value: "  새별  " } });
-    fireEvent.change(screen.getByLabelText("선호 리스크"), {
+    fireEvent.change(screen.getByLabelText("리스크 성향"), {
       target: { value: "aggressive" },
     });
     fireEvent.click(screen.getByLabelText(/이메일 알림 받기/));
@@ -314,7 +314,7 @@ describe("AccountClient", () => {
 
     const nicknameInput = await screen.findByLabelText("닉네임");
     fireEvent.change(nicknameInput, { target: { value: "새별" } });
-    fireEvent.change(screen.getByLabelText("선호 리스크"), {
+    fireEvent.change(screen.getByLabelText("리스크 성향"), {
       target: { value: "aggressive" },
     });
     fireEvent.click(screen.getByRole("button", { name: "저장" }));

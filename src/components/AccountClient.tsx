@@ -283,7 +283,7 @@ export function AccountClient() {
               </label>
 
               <label className="block">
-                <span className="text-xs font-medium text-muted">선호 리스크</span>
+                <span className="text-xs font-medium text-muted">리스크 성향</span>
                 <select
                   value={riskProfile}
                   onChange={(event) => setRiskProfile(readRiskProfile(event.target.value))}
