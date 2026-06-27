@@ -9,6 +9,15 @@ export function formatDate(value: unknown): string {
   return value.slice(0, 10);
 }
 
+export function riskProfileLabel(value: string): string {
+  const labels: Record<string, string> = {
+    conservative: "안정형",
+    balanced: "균형형",
+    aggressive: "적극형",
+  };
+  return labels[value] ?? "균형형";
+}
+
 export function componentLabel(name: string): string {
   const labels: Record<string, string> = {
     financial_stability: "재무 안정성",
