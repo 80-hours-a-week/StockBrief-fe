@@ -15,7 +15,7 @@ export function riskProfileLabel(value: string): string {
     balanced: "균형형",
     aggressive: "적극형",
   };
-  return labels[value] ?? "균형형";
+  return labels[value] ?? "확인 필요";
 }
 
 export function componentLabel(name: string): string {

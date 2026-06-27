@@ -7,6 +7,6 @@ describe("format helpers", () => {
     expect(riskProfileLabel("conservative")).toBe("안정형");
     expect(riskProfileLabel("balanced")).toBe("균형형");
     expect(riskProfileLabel("aggressive")).toBe("적극형");
-    expect(riskProfileLabel("unknown")).toBe("균형형");
+    expect(riskProfileLabel("unknown")).toBe("확인 필요");
   });
 });
