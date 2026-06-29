@@ -23,7 +23,7 @@ updates:
       interval: weekly
     labels:
       - dependencies
-      - npm
+      - pnpm
     groups:
       production-stack:
         dependency-type: production

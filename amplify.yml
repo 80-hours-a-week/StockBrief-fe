@@ -5,12 +5,14 @@ frontend:
       commands:
         - nvm install 24
         - nvm use 24
+        - corepack enable
+        - corepack prepare pnpm@11.7.0 --activate
         - node -v
-        - npm ci --cache .npm --prefer-offline
+        - pnpm install --frozen-lockfile --store-dir .pnpm-store
     build:
       commands:
         - node -v
-        - npm run build
+        - pnpm run build
   artifacts:
     baseDirectory: .next
     files:
@@ -18,4 +20,4 @@ frontend:
   cache:
     paths:
       - .next/cache/**/*
-      - .npm/**/*
+      - .pnpm-store/**/*
