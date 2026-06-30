@@ -1,10 +1,92 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getRecommendationCandidate, postAuthenticatedChat, postChat, searchStocks } from "./api";
+import {
+  getRecommendationCandidate,
+  getRecommendationCandidates,
+  postAuthenticatedChat,
+  postChat,
+  searchStocks,
+} from "./api";
 
 describe("candidate API adapters", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("loads final recommendation candidate fields from the public list endpoint", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        jsonResponse({
+          items: [
+            {
+              ticker: "005930",
+              name: "삼성전자",
+              market: "KOSPI",
+              sector: "반도체",
+              recommendation_score: 78.5,
+              score_components: [
+                {
+                  name: "financial_stability",
+                  weight: 20,
+                  raw_score: 82,
+                  weighted_score: 16.4,
+                  reason: "재무 안정성 항목은 공개 데이터 기준으로 계산했습니다.",
+                  input_refs: ["financials.total_liabilities"],
+                  evidence_ids: ["ev_005930_financial"],
+                },
+              ],
+              recommendation_reasons: [
+                {
+                  reason_id: "rsn_005930_1",
+                  component: "financial_stability",
+                  summary: "공개 데이터 기준 검토 포인트가 확인됩니다.",
+                  evidence_ids: ["ev_005930_financial"],
+                  source_document_ids: ["doc_005930_1"],
+                },
+              ],
+              risk_tags: ["data_gap"],
+              evidence_level: "strong",
+              evidence_count: 4,
+              missing_data: [{ field: "price", status: "fallback" }],
+              data_freshness: {
+                as_of: "2026-06-30",
+                price_as_of: null,
+                live_evidence_latest_at: "2026-06-30T01:00:00Z",
+              },
+              disclaimer: "공개 데이터 기반 검토 후보입니다.",
+            },
+          ],
+          count: 1,
+          risk_profile: "conservative",
+          disclaimer: "공개 데이터 기반 검토 후보입니다.",
+        }),
+      ),
+    );
+
+    const response = await getRecommendationCandidates({
+      riskProfile: "conservative",
+      market: "KOSPI",
+      sector: "반도체",
+      limit: 20,
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:8000/v1/recommendations/candidates?risk_profile=conservative&market=KOSPI&sector=%EB%B0%98%EB%8F%84%EC%B2%B4&limit=20",
+      expect.objectContaining({
+        cache: "no-store",
+      }),
+    );
+    expect(response.items[0].score_components[0]).toMatchObject({
+      name: "financial_stability",
+      weighted_score: 16.4,
+      evidence_ids: ["ev_005930_financial"],
+    });
+    expect(response.items[0].risk_tags).toEqual(["data_gap"]);
+    expect(response.items[0].missing_data).toEqual([{ field: "price", status: "fallback" }]);
+    expect(response.items[0].data_freshness.live_evidence_latest_at).toBe(
+      "2026-06-30T01:00:00Z",
+    );
   });
 
   it("loads detail data from the public stock candidate endpoint", async () => {

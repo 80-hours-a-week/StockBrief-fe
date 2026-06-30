@@ -81,6 +81,8 @@ Public MVP endpoints remain available without authentication:
 - `GET /v1/health`
 - `GET /v1/meta/service-policy`
 - `GET /v1/stocks/search`
+- `GET /v1/recommendations/candidates`
+- `GET /v1/recommendations/candidates/{ticker}`
 - `GET /v1/stocks/candidates`
 - `GET /v1/stocks/candidates/{ticker}`
 - `GET /v1/stocks/{ticker}`
@@ -158,9 +160,12 @@ Response `200`:
 }
 ```
 
-### GET /v1/stocks/candidates
+### GET /v1/recommendations/candidates
 
-Returns recommendation candidates that pass the evidence gate.
+Returns recommendation candidates that pass the evidence gate with the final
+score, evidence, freshness, missing data, and risk fields used by the frontend.
+`GET /v1/stocks/candidates` remains a compact stock-candidate contract and is
+not used for this UI rendering path.
 
 Query parameters:
 
@@ -357,7 +362,7 @@ Response `200`:
       "id": "ev_20260609_005930_001",
       "type": "disclosure",
       "title": "분기보고서",
-      "summary": "공개 공시 형식의 mock 데이터에서 재무 안정성 검토 포인트가 확인됩니다.",
+      "summary": "공개 공시 데이터에서 재무 안정성 검토 포인트가 확인됩니다.",
       "source_name": "OpenDART",
       "source_url": "https://dart.fss.or.kr/example",
       "source_identifier": "doc_20260609_005930_001",
@@ -434,18 +439,27 @@ Response `200`:
 
 ```json
 {
-  "session_id": "chat_20260609_001",
-  "message_id": "msg_20260609_002",
-  "answer": "005930은 공개 데이터 기준으로 재무 안정성과 공시 근거가 확인되어 검토해볼 수 있습니다. 다만 업종 사이클과 변동성 리스크는 확인이 필요합니다.",
-  "citations": [
-    {
-      "evidence_id": "ev_20260609_005930_001",
-      "source_url": "https://dart.fss.or.kr/example",
-      "title": "분기보고서"
+  "success": true,
+  "data": {
+    "session_id": "chat_20260609_001",
+    "message_id": "msg_20260609_002",
+    "answer": "005930은 공개 데이터 기준으로 재무 안정성과 공시 근거가 확인되어 검토해볼 수 있습니다. 다만 업종 사이클과 변동성 리스크는 확인이 필요합니다.",
+    "citations": [
+      {
+        "id": "ev_20260609_005930_001",
+        "source_type": "DISCLOSURE",
+        "title": "분기보고서",
+        "url": "https://dart.fss.or.kr/example",
+        "published_at": "2026-06-08T09:00:00Z"
+      }
+    ],
+    "safety": {
+      "policy_action": "ALLOW",
+      "disclaimer": "이 정보는 투자 조언이 아니며, 투자 판단 전 원문과 최신 데이터를 확인하세요."
     }
-  ],
-  "policy_status": "allowed",
-  "used_evidence_ids": ["ev_20260609_005930_001"]
+  },
+  "message": "채팅 응답을 반환했습니다.",
+  "request_id": "req_20260609_001"
 }
 ```
 
@@ -453,12 +467,19 @@ Refusal response example:
 
 ```json
 {
-  "session_id": "chat_20260609_001",
-  "message_id": "msg_20260609_003",
-  "answer": "StockBrief는 매매 판단이나 가격 기준을 제공하지 않습니다. 공개 데이터와 근거를 바탕으로 검토 후보에 포함된 이유만 설명할 수 있습니다.",
-  "citations": [],
-  "policy_status": "redirected",
-  "used_evidence_ids": []
+  "success": true,
+  "data": {
+    "session_id": "chat_20260609_001",
+    "message_id": "msg_20260609_003",
+    "answer": "StockBrief는 매매 판단이나 가격 기준을 제공하지 않습니다. 공개 데이터와 근거를 바탕으로 검토 후보에 포함된 이유만 설명할 수 있습니다.",
+    "citations": [],
+    "safety": {
+      "policy_action": "REDIRECT",
+      "disclaimer": "이 정보는 투자 조언이 아니며, 투자 판단 전 원문과 최신 데이터를 확인하세요."
+    }
+  },
+  "message": "채팅 응답을 반환했습니다.",
+  "request_id": "req_20260609_002"
 }
 ```
 
@@ -471,7 +492,7 @@ Candidate list inclusion requires:
 - `data_freshness.as_of` is present
 - `missing_data` is present, even when empty
 
-If any check fails, the ticker is excluded from `GET /v1/stocks/candidates` and its detail response must show `is_candidate_eligible: false`.
+If any check fails, the ticker is excluded from `GET /v1/recommendations/candidates`.
 
 ## 6. Score Components
 
@@ -641,7 +662,7 @@ Response `200`:
       "ticker": "005930",
       "citations": [
         {
-          "evidence_id": "ev_mock_005930_news"
+          "evidence_id": "ev_20260624_005930_news"
         }
       ],
       "safety_flags": [],

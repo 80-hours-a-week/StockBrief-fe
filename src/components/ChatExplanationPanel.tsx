@@ -144,7 +144,7 @@ export function ChatExplanationPanel({ ticker, initialSessionId = null }: ChatEx
                     <span className="font-semibold text-accent">
                       {citation.evidence_id}
                     </span>{" "}
-                    {evidenceTypeLabel(citation.type)} / {citation.source_name} /{" "}
+                    {citation.title} / {evidenceTypeLabel(citation.type)} / {citation.source_name} /{" "}
                     {formatDate(citation.as_of_date)}
                     {isSafeExternalUrl(citation.source_url) ? (
                       <>

@@ -52,6 +52,7 @@ describe("ChatExplanationPanel", () => {
     expect(screen.getByText("공개 데이터 기준 설명입니다.")).not.toBeNull();
     expect(screen.getByText("이 정보는 투자 조언이 아니며 원문 확인이 필요합니다.")).not.toBeNull();
     expect(screen.getByText("사용된 근거")).not.toBeNull();
+    expect(screen.getByText(/삼성전자 뉴스/)).not.toBeNull();
     expect(screen.getByText(/2026-06-23/)).not.toBeNull();
     expect(screen.getByRole("link", { name: "원문" }).getAttribute("href")).toBe(
       "https://example.com/news",

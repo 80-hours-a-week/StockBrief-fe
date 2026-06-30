@@ -1,8 +1,40 @@
 export type EvidenceLevel = "strong" | "medium" | "weak";
+export type EvidenceType = "news" | "disclosure" | "financial" | "price";
 export type RiskProfile = "conservative" | "balanced" | "aggressive";
+export type RiskTag = string;
+export type ScoreComponentName =
+  | "financial_stability"
+  | "profitability"
+  | "growth"
+  | "valuation"
+  | "news_attention"
+  | "disclosure_event"
+  | "liquidity"
+  | "momentum_volatility";
+export type DataStatus = "available" | "fallback" | "missing";
+
+export interface DataFreshness {
+  as_of: string;
+  price_as_of?: string | null;
+  financials_as_of?: string | null;
+  disclosures_fetched_at?: string | null;
+  news_fetched_at?: string | null;
+  live_evidence_latest_at?: string | null;
+  [key: string]: unknown;
+}
+
+export type MissingDataItem =
+  | string
+  | {
+      field: string;
+      status?: "missing" | "stale" | "fallback";
+      reason?: string;
+      as_of?: string | null;
+      [key: string]: unknown;
+    };
 
 export interface ScoreComponent {
-  name: string;
+  name: ScoreComponentName;
   weight: number;
   raw_score: number | null;
   weighted_score: number;
@@ -27,11 +59,11 @@ export interface RecommendationCandidate {
   recommendation_score: number;
   score_components: ScoreComponent[];
   recommendation_reasons: RecommendationReason[];
-  risk_tags: string[];
+  risk_tags: RiskTag[];
   evidence_level: EvidenceLevel;
   evidence_count: number;
-  missing_data: unknown[];
-  data_freshness: Record<string, unknown>;
+  missing_data: MissingDataItem[];
+  data_freshness: DataFreshness;
   disclaimer: string;
 }
 
@@ -77,7 +109,7 @@ export interface StockDetail {
 
 export interface StockEvidenceItem {
   id: string;
-  type: "news" | "disclosure" | "financial" | "price";
+  type: EvidenceType;
   title: string;
   summary: string;
   source_name: string;
@@ -85,7 +117,7 @@ export interface StockEvidenceItem {
   source_identifier: string | null;
   published_at: string | null;
   as_of_date: string | null;
-  data_status: "available" | "fallback" | "missing";
+  data_status: DataStatus;
 }
 
 export interface StockEvidenceResponse {
@@ -103,7 +135,7 @@ export interface ChatRequest {
 
 export interface ChatCitation {
   evidence_id: string;
-  type: "news" | "disclosure" | "financial" | "price";
+  type: EvidenceType;
   title: string;
   source_name: string;
   source_url: string | null;

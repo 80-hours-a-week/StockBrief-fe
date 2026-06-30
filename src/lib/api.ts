@@ -1,7 +1,5 @@
 import type {
   ChatContractResponse,
-  StockCandidateContractItem,
-  StockCandidateContractResponse,
   StockDetailContractResponse,
   StockEvidenceContractResponse,
   StockSearchContractResponse,
@@ -95,13 +93,7 @@ export async function getRecommendationCandidates(
   if (query.sector) params.set("sector", query.sector);
   if (query.limit) params.set("limit", String(query.limit));
   const suffix = params.toString() ? `?${params.toString()}` : "";
-  const response = await request<StockCandidateContractResponse>(`/stocks/candidates${suffix}`);
-  return {
-    items: response.data.items.map(toRecommendationCandidate),
-    count: response.data.pagination.total,
-    risk_profile: query.riskProfile ?? "balanced",
-    disclaimer: "공개 데이터 기반 검토 후보이며 최종 투자 판단은 사용자에게 있습니다.",
-  };
+  return request<RecommendationCandidateList>(`/recommendations/candidates${suffix}`);
 }
 
 export async function getRecommendationCandidate(
@@ -310,61 +302,6 @@ export async function getUserChatSessionDetail(
     `/me/chat-sessions/${encodeURIComponent(sessionId)}`,
     accessToken,
   );
-}
-
-function toRecommendationCandidate(item: StockCandidateContractItem): RecommendationCandidate {
-  const asOf = item.score.as_of;
-  return {
-    ticker: item.ticker,
-    name: item.name,
-    market: item.market,
-    sector: item.sector,
-    recommendation_score: item.score.total,
-    score_components: [
-      component("momentum_volatility", 10, item.score.breakdown.momentum),
-      component("liquidity", 10, item.score.breakdown.liquidity),
-      component("disclosure_event", 10, item.score.breakdown.disclosure),
-      component("news_attention", 10, item.score.breakdown.news),
-      component("financial_stability", 20, 0),
-      component("profitability", 15, 0),
-      component("growth", 15, 0),
-      component("valuation", 10, 0),
-    ],
-    recommendation_reasons: [
-      {
-        reason_id: `contract-${item.ticker}-summary`,
-        component: "news_attention",
-        summary: "공개 데이터 기준 점수와 근거 요약이 확인됩니다.",
-        evidence_ids: [],
-        source_document_ids: [],
-      },
-    ],
-    risk_tags: [],
-    evidence_level:
-      item.evidence_summary.news_count + item.evidence_summary.disclosure_count >= 2
-        ? "medium"
-        : "weak",
-    evidence_count: item.evidence_summary.news_count + item.evidence_summary.disclosure_count,
-    missing_data: [],
-    data_freshness: {
-      as_of: asOf,
-      price_as_of: item.price?.trade_date ?? asOf,
-      latest_evidence_at: item.evidence_summary.latest_at,
-    },
-    disclaimer: "공개 데이터 기반 검토 후보이며 최종 투자 판단은 사용자에게 있습니다.",
-  };
-}
-
-function component(name: string, weight: number, weightedScore: number) {
-  return {
-    name,
-    weight,
-    raw_score: null,
-    weighted_score: weightedScore,
-    reason: "API 명세서 기반 mock 응답에서 계산된 점수 항목입니다.",
-    input_refs: [],
-    evidence_ids: [],
-  };
 }
 
 function toContractEvidenceFilter(type: EvidenceFilterType) {
