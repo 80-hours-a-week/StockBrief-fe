@@ -99,6 +99,26 @@ export async function runSmoke({
   });
   checks[watchlist.name] = watchlist;
 
+  const account = await checkPage({
+    name: "hosted_page:/account",
+    baseUrl,
+    path: "/account",
+    timeoutMs,
+    fetcher,
+    inspect: inspectAccountPage,
+  });
+  checks[account.name] = account;
+
+  const authCallback = await checkPage({
+    name: "hosted_page:/auth/callback",
+    baseUrl,
+    path: "/auth/callback",
+    timeoutMs,
+    fetcher,
+    inspect: inspectAuthCallbackPage,
+  });
+  checks[authCallback.name] = authCallback;
+
   for (const check of Object.values(checks)) {
     if (!check.ok) {
       blockers.push({
@@ -162,6 +182,24 @@ export function inspectWatchlistPage(html) {
     hasGuestStorageCopy:
       html.includes("게스트는 이 브라우저에 저장하고") ||
       html.includes("게스트 상태입니다. 관심종목은 이 브라우저의 localStorage에 저장됩니다."),
+  };
+  return summarizeInspection(checks);
+}
+
+export function inspectAccountPage(html) {
+  const checks = {
+    hasAccountHeading: html.includes("계정"),
+    hasGuestContinuityCopy: html.includes("게스트 기능은 그대로 사용할 수 있고"),
+    hasAuthEntryOrConfigState: html.includes("이메일 로그인") || html.includes("로그인 환경이 아직 설정되지 않았습니다."),
+  };
+  return summarizeInspection(checks);
+}
+
+export function inspectAuthCallbackPage(html) {
+  const checks = {
+    hasCallbackHeading: html.includes("로그인 처리"),
+    hasFailureRecoveryCopy: html.includes("로그인 결과를 처리하지 못했습니다."),
+    hasAccountRecoveryLink: html.includes("계정으로 이동"),
   };
   return summarizeInspection(checks);
 }
