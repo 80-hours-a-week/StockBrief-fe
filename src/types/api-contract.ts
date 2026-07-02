@@ -12,42 +12,6 @@ export interface PaginationContract {
   has_more: boolean;
 }
 
-export type StockCandidateContractResponse = ApiEnvelope<{
-  as_of: string;
-  items: StockCandidateContractItem[];
-  pagination: PaginationContract;
-}>;
-
-export interface StockCandidateContractItem {
-  ticker: string;
-  name: string;
-  market: string;
-  sector: string | null;
-  score: {
-    total: number;
-    grade: string;
-    as_of: string;
-    version: string;
-    breakdown: {
-      momentum: number;
-      liquidity: number;
-      disclosure: number;
-      news: number;
-    };
-  };
-  price: {
-    close: number | null;
-    change_rate: number | null;
-    volume: number | null;
-    trade_date: string | null;
-  } | null;
-  evidence_summary: {
-    news_count: number;
-    disclosure_count: number;
-    latest_at: string | null;
-  };
-}
-
 export type StockSearchContractResponse = ApiEnvelope<{
   items: Array<{
     ticker: string;

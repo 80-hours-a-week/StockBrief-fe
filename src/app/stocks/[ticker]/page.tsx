@@ -6,7 +6,7 @@ import { ScoreBadge } from "@/components/ScoreBadge";
 import { WatchlistToggle } from "@/components/WatchlistToggle";
 import { componentLabel, evidenceTypeLabel, formatDate, formatScore } from "@/lib/format";
 import { getRecommendationCandidate, getStock, getStockEvidence } from "@/lib/api";
-import type { ScoreComponent } from "@/types/api";
+import type { MissingDataItem, ScoreComponent } from "@/types/api";
 
 export const dynamic = "force-dynamic";
 
@@ -280,7 +280,7 @@ function componentWidth(component: ScoreComponent): number {
   return Math.max(0, Math.min(100, (component.weighted_score / component.weight) * 100));
 }
 
-function formatMissingData(value: unknown[]) {
+function formatMissingData(value: MissingDataItem[]) {
   if (!Array.isArray(value) || value.length === 0) {
     return { summary: "없음", items: [] as string[] };
   }
