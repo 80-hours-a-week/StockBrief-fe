@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   inspectHomePage,
+  inspectAccountPage,
+  inspectAuthCallbackPage,
   inspectStockDetailPage,
   inspectWatchlistPage,
   normalizeBaseUrl,
@@ -44,6 +46,24 @@ const watchlistHtml = `
   </main>
 `;
 
+const accountHtml = `
+  <main>
+    <h1>계정</h1>
+    <p>게스트 기능은 그대로 사용할 수 있고, 로그인하면 관심종목, 선호 설정, 대화 이력을 서버에 저장합니다.</p>
+    <button>이메일 로그인</button>
+    <p>private account payload should not be printed</p>
+  </main>
+`;
+
+const authCallbackHtml = `
+  <main>
+    <h1>로그인 처리</h1>
+    <p>로그인 결과를 처리하지 못했습니다. 계정 화면에서 다시 시도해 주세요.</p>
+    <a href="/account">계정으로 이동</a>
+    <p>auth code should not be printed</p>
+  </main>
+`;
+
 describe("check-hosted-evidence-smoke", () => {
   it("parses CLI args and normalizes hosted URLs", () => {
     expect(
@@ -66,13 +86,27 @@ describe("check-hosted-evidence-smoke", () => {
     );
   });
 
-  it("checks hosted home, stock detail evidence, and guest watchlist without printing raw HTML", async () => {
+  it("checks hosted product pages without printing raw HTML", async () => {
     const calls = [];
     const result = await runSmoke({
       hostedUrl: "https://main.example.amplifyapp.com",
       ticker: "005930",
       fetcher: async (url) => {
         calls.push(url);
+        if (url.endsWith("/account")) {
+          return {
+            statusCode: 200,
+            body: accountHtml,
+            errorCode: null,
+          };
+        }
+        if (url.endsWith("/auth/callback")) {
+          return {
+            statusCode: 200,
+            body: authCallbackHtml,
+            errorCode: null,
+          };
+        }
         if (url.endsWith("/watchlist")) {
           return {
             statusCode: 200,
@@ -94,6 +128,8 @@ describe("check-hosted-evidence-smoke", () => {
       "https://main.example.amplifyapp.com/",
       "https://main.example.amplifyapp.com/stocks/005930",
       "https://main.example.amplifyapp.com/watchlist",
+      "https://main.example.amplifyapp.com/account",
+      "https://main.example.amplifyapp.com/auth/callback",
     ]);
     expect(result.checks["hosted_page:/stocks/{ticker}"].summary).toMatchObject({
       hasEvidenceSection: true,
@@ -107,9 +143,23 @@ describe("check-hosted-evidence-smoke", () => {
       hasGuestStorageCopy: true,
       missing: [],
     });
+    expect(result.checks["hosted_page:/account"].summary).toMatchObject({
+      hasAccountHeading: true,
+      hasGuestContinuityCopy: true,
+      hasAuthEntryOrConfigState: true,
+      missing: [],
+    });
+    expect(result.checks["hosted_page:/auth/callback"].summary).toMatchObject({
+      hasCallbackHeading: true,
+      hasFailureRecoveryCopy: true,
+      hasAccountRecoveryLink: true,
+      missing: [],
+    });
     expect(serialized).not.toContain("provider raw title");
     expect(serialized).not.toContain("provider.example");
     expect(serialized).not.toContain("private localStorage payload");
+    expect(serialized).not.toContain("private account payload");
+    expect(serialized).not.toContain("auth code");
   });
 
   it("reports missing evidence fields as blockers", async () => {
@@ -117,6 +167,20 @@ describe("check-hosted-evidence-smoke", () => {
       hostedUrl: "https://main.example.amplifyapp.com",
       ticker: "005930",
       fetcher: async (url) => {
+        if (url.endsWith("/account")) {
+          return {
+            statusCode: 200,
+            body: accountHtml,
+            errorCode: null,
+          };
+        }
+        if (url.endsWith("/auth/callback")) {
+          return {
+            statusCode: 200,
+            body: authCallbackHtml,
+            errorCode: null,
+          };
+        }
         if (url.endsWith("/watchlist")) {
           return {
             statusCode: 200,
@@ -145,15 +209,77 @@ describe("check-hosted-evidence-smoke", () => {
     ]);
   });
 
+  it("reports missing account and auth callback markers as redacted blockers", async () => {
+    const result = await runSmoke({
+      hostedUrl: "https://main.example.amplifyapp.com",
+      ticker: "005930",
+      fetcher: async (url) => {
+        if (url.endsWith("/watchlist")) {
+          return {
+            statusCode: 200,
+            body: watchlistHtml,
+            errorCode: null,
+          };
+        }
+        if (url.endsWith("/account")) {
+          return {
+            statusCode: 200,
+            body: "<main><h1>계정</h1></main>",
+            errorCode: null,
+          };
+        }
+        if (url.endsWith("/auth/callback")) {
+          return {
+            statusCode: 200,
+            body: "<main><h1>로그인 처리</h1></main>",
+            errorCode: null,
+          };
+        }
+        return {
+          statusCode: 200,
+          body: url.endsWith("/stocks/005930") ? detailHtml : homeHtml,
+          errorCode: null,
+        };
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.blockers).toEqual([
+      {
+        check: "hosted_page:/account",
+        status_code: 200,
+        missing: ["hasGuestContinuityCopy", "hasAuthEntryOrConfigState"],
+        error_code: "check_failed",
+      },
+      {
+        check: "hosted_page:/auth/callback",
+        status_code: 200,
+        missing: ["hasFailureRecoveryCopy", "hasAccountRecoveryLink"],
+        error_code: "check_failed",
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain("계정</h1>");
+  });
+
   it("keeps page inspection rules small and explicit", () => {
     expect(inspectHomePage(homeHtml).passed).toBe(true);
     expect(inspectStockDetailPage(detailHtml).passed).toBe(true);
     expect(inspectWatchlistPage(watchlistHtml).passed).toBe(true);
+    expect(inspectAccountPage(accountHtml).passed).toBe(true);
+    expect(inspectAuthCallbackPage(authCallbackHtml).passed).toBe(true);
     expect(inspectStockDetailPage("<main>공시·뉴스·재무·가격 근거</main>").summary.missing).toContain(
       "hasEvidenceId",
     );
     expect(inspectWatchlistPage("<main>저장한 검토 후보</main>").summary.missing).toEqual([
       "hasGuestStorageCopy",
+    ]);
+    expect(inspectAccountPage("<main>계정</main>").summary.missing).toEqual([
+      "hasGuestContinuityCopy",
+      "hasAuthEntryOrConfigState",
+    ]);
+    expect(inspectAuthCallbackPage("<main>로그인 처리</main>").summary.missing).toEqual([
+      "hasFailureRecoveryCopy",
+      "hasAccountRecoveryLink",
     ]);
   });
 });
