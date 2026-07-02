@@ -89,6 +89,16 @@ export async function runSmoke({
   });
   checks[detail.name] = detail;
 
+  const watchlist = await checkPage({
+    name: "hosted_page:/watchlist",
+    baseUrl,
+    path: "/watchlist",
+    timeoutMs,
+    fetcher,
+    inspect: inspectWatchlistPage,
+  });
+  checks[watchlist.name] = watchlist;
+
   for (const check of Object.values(checks)) {
     if (!check.ok) {
       blockers.push({
@@ -142,6 +152,16 @@ export function inspectStockDetailPage(html) {
     hasEvidenceId: html.includes("근거 ID:"),
     hasPublishedDate: html.includes("발행일:"),
     hasSourceReference: html.includes("원문 보기") || html.includes("출처 ID:"),
+  };
+  return summarizeInspection(checks);
+}
+
+export function inspectWatchlistPage(html) {
+  const checks = {
+    hasWatchlistHeading: html.includes("저장한 검토 후보"),
+    hasGuestStorageCopy:
+      html.includes("게스트는 이 브라우저에 저장하고") ||
+      html.includes("게스트 상태입니다. 관심종목은 이 브라우저의 localStorage에 저장됩니다."),
   };
   return summarizeInspection(checks);
 }

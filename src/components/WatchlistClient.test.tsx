@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getMe } from "@/lib/api";
 import { readApiAuthToken } from "@/lib/cognito-auth";
 import { importLocalWatchlistOnce } from "@/lib/server-watchlist-store";
+import { readWatchlist } from "@/lib/watchlist-storage";
 
 import { WatchlistClient } from "./WatchlistClient";
 
@@ -55,6 +56,7 @@ vi.mock("@/lib/watchlist-storage", () => ({
 const mockedGetMe = vi.mocked(getMe);
 const mockedReadApiAuthToken = vi.mocked(readApiAuthToken);
 const mockedImportLocalWatchlistOnce = vi.mocked(importLocalWatchlistOnce);
+const mockedReadWatchlist = vi.mocked(readWatchlist);
 
 describe("WatchlistClient", () => {
   beforeEach(() => {
@@ -98,5 +100,22 @@ describe("WatchlistClient", () => {
     render(<WatchlistClient />);
 
     expect(await screen.findByText("이미 이 계정으로 관심종목 동기화를 완료했습니다.")).not.toBeNull();
+  });
+
+  it("keeps the guest watchlist empty state available without authentication", async () => {
+    mockedReadApiAuthToken.mockReturnValue(null);
+    mockedReadWatchlist.mockReturnValue([]);
+
+    render(<WatchlistClient />);
+
+    expect(
+      await screen.findByText("게스트 상태입니다. 관심종목은 이 브라우저의 localStorage에 저장됩니다."),
+    ).not.toBeNull();
+    expect(screen.getByText("저장된 관심종목이 없습니다.")).not.toBeNull();
+    expect(screen.getByRole("link", { name: "추천 후보 보기" }).getAttribute("href")).toBe(
+      "/recommendations",
+    );
+    expect(mockedGetMe).not.toHaveBeenCalled();
+    expect(mockedImportLocalWatchlistOnce).not.toHaveBeenCalled();
   });
 });
