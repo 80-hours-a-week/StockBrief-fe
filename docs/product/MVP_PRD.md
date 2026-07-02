@@ -55,7 +55,7 @@ MVP 기능 고정 목록:
 | --- | --- | --- |
 | Onboarding | Explain that StockBrief provides evidence-based review candidates, not trading advice. | User sees neutral policy copy before or during first use. |
 | Recommendation candidate list | Show today's domestic stock review candidates. | Each row includes `ticker`, company name, market, total score, evidence count, data freshness, and risk tags. |
-| Recommendation detail | Show score breakdown, reasons, evidence, missing data, and risks for one ticker. | Detail view maps directly to `GET /v1/stocks/candidates/{ticker}`. |
+| Recommendation detail | Show score breakdown, reasons, evidence, missing data, and risks for one ticker. | Detail view maps directly to `GET /v1/recommendations/candidates/{ticker}`. |
 | Evidence view | Show source documents and evidence chunks used by the score/reason. | Each evidence item includes source name, URL when available, published date, fetched time, and evidence type. |
 | AI reason explanation | Explain precomputed recommendation reasons and evidence in neutral language. | AI cites evidence IDs or source URLs and never creates its own score. |
 | localStorage watchlist | Let guest users save 관심종목 locally. | Watchlist persists in browser `localStorage`; no server account is required. |
@@ -110,15 +110,15 @@ Example localStorage values:
 
 ### Flow B: Review Candidate List
 
-1. Frontend calls `GET /api/v1/stocks/candidates`.
-2. Next.js proxy forwards to backend `GET /v1/stocks/candidates`.
+1. Frontend calls `GET /api/v1/recommendations/candidates`.
+2. Next.js proxy forwards to backend `GET /v1/recommendations/candidates`.
 3. If the user is authenticated and the URL has no explicit `risk_profile`, frontend initializes the candidate filter from `GET /v1/me/preferences`.
 4. User reviews score, evidence count, freshness, and risk tags.
 5. User opens a candidate detail page.
 
 ### Flow C: Recommendation Detail
 
-1. Frontend calls `GET /api/v1/stocks/candidates/{ticker}`.
+1. Frontend calls `GET /api/v1/recommendations/candidates/{ticker}`.
 2. Detail page displays:
    - total score
    - 8 component scores
@@ -188,6 +188,8 @@ MVP endpoints:
 
 - `GET /v1/health`
 - `GET /v1/stocks/search`
+- `GET /v1/recommendations/candidates`
+- `GET /v1/recommendations/candidates/{ticker}`
 - `GET /v1/stocks/candidates`
 - `GET /v1/stocks/candidates/{ticker}`
 - `GET /v1/stocks/{ticker}`

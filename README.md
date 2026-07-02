@@ -103,6 +103,7 @@ API 계약은 BE 레포에서 먼저 고정한다. `docs/engineering/API_CONTRAC
 
 - Backend canonical API base: `/v1`
 - Recommendation candidates: `GET /v1/recommendations/candidates`
+- Recommendation candidate detail: `GET /v1/recommendations/candidates/{ticker}`
 
 ## 관련 레포
 

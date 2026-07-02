@@ -89,7 +89,7 @@ describe("candidate API adapters", () => {
     );
   });
 
-  it("loads detail data from the public stock candidate endpoint", async () => {
+  it("loads detail data from the canonical recommendation candidate endpoint", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -114,7 +114,7 @@ describe("candidate API adapters", () => {
     const candidate = await getRecommendationCandidate("005930");
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8000/v1/stocks/candidates/005930",
+      "http://localhost:8000/v1/recommendations/candidates/005930",
       expect.any(Object),
     );
     expect(candidate.ticker).toBe("005930");
