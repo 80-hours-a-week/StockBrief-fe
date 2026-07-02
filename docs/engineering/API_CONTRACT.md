@@ -229,9 +229,12 @@ Response `200`:
 }
 ```
 
-### GET /v1/stocks/candidates/{ticker}
+### GET /v1/recommendations/candidates/{ticker}
 
-Returns full recommendation detail for one ticker.
+Returns the full recommendation candidate detail for one ticker. Frontend
+detail pages use this canonical recommendation contract. `GET
+/v1/stocks/candidates/{ticker}` remains a compatibility alias, but new
+frontend code should not depend on the alias.
 
 Path parameters:
 
@@ -244,64 +247,33 @@ Response `200`:
 ```json
 {
   "ticker": "005930",
-  "company_name": "삼성전자",
+  "name": "삼성전자",
   "market": "KOSPI",
   "sector": "반도체",
-  "is_candidate_eligible": true,
-  "evidence_gate": {
-    "passed": true,
-    "checks": {
-      "min_evidence_count": true,
-      "min_risk_count": true,
-      "has_data_basis_date": true,
-      "has_missing_data_field": true
-    },
-    "fail_reasons": []
-  },
-  "score": {
-    "total": 78.5,
-    "evidence_level": "strong",
-    "components": [
-      {
-        "name": "financial_stability",
-        "weight": 20,
-        "raw_score": 82,
-        "weighted_score": 16.4,
-        "reason": "부채비율과 유동성 지표가 기준 대비 양호합니다."
-      },
-      {
-        "name": "profitability",
-        "weight": 15,
-        "raw_score": 76,
-        "weighted_score": 11.4,
-        "reason": "영업이익률이 최근 기준에서 안정적으로 확인됩니다."
-      }
-    ]
-  },
-  "reasons": [
+  "recommendation_score": 78.5,
+  "score_components": [
     {
-      "reason_id": "rsn_20260609_005930_001",
-      "component": "financial_stability",
-      "summary": "재무 안정성 지표가 기준 대비 양호합니다.",
+      "name": "financial_stability",
+      "weight": 20,
+      "raw_score": 82,
+      "weighted_score": 16.4,
+      "reason": "재무 안정성 항목은 공개 데이터 기준으로 계산했습니다.",
+      "input_refs": ["financials.total_liabilities", "financials.total_equity"],
       "evidence_ids": ["ev_20260609_005930_001"]
     }
   ],
-  "evidence": [
+  "recommendation_reasons": [
     {
-      "evidence_id": "ev_20260609_005930_001",
-      "ticker": "005930",
-      "source_type": "disclosure",
-      "source_name": "OpenDART",
-      "source_url": "https://dart.fss.or.kr/example",
-      "document_id": "doc_20260609_005930_001",
-      "published_at": "2026-06-08T09:00:00Z",
-      "fetched_at": "2026-06-09T08:00:00Z",
-      "title": "분기보고서",
-      "excerpt": "재무 안정성 판단에 사용된 공개 공시 요약입니다.",
-      "evidence_type": "financial_stability",
-      "confidence": 0.82
+      "reason_id": "rsn_20260609_005930_001",
+      "component": "financial_stability",
+      "summary": "공개 데이터 기준 검토 포인트가 확인됩니다.",
+      "evidence_ids": ["ev_20260609_005930_001"],
+      "source_document_ids": ["doc_20260609_005930_001"]
     }
   ],
+  "risk_tags": ["high_volatility", "sector_cycle"],
+  "evidence_level": "strong",
+  "evidence_count": 4,
   "missing_data": [],
   "data_freshness": {
     "as_of": "2026-06-09",
@@ -310,7 +282,7 @@ Response `200`:
     "disclosures_fetched_at": "2026-06-09T08:00:00Z",
     "news_fetched_at": "2026-06-09T08:30:00Z"
   },
-  "risk_tags": ["high_volatility", "sector_cycle"]
+  "disclaimer": "공개 데이터 기반 검토 후보이며 최종 투자 판단은 사용자에게 있습니다."
 }
 ```
 
