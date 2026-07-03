@@ -99,7 +99,9 @@ export async function getRecommendationCandidates(
 export async function getRecommendationCandidate(
   ticker: string,
 ): Promise<RecommendationCandidate> {
-  return request<RecommendationCandidate>(`/stocks/candidates/${encodeURIComponent(ticker)}`);
+  return request<RecommendationCandidate>(
+    `/recommendations/candidates/${encodeURIComponent(ticker)}`,
+  );
 }
 
 export async function searchStocks(query = "", limit = 20): Promise<StockSearchResponse> {

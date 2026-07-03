@@ -63,7 +63,7 @@ describe("StockPage", () => {
       data_freshness: {
         as_of: "2026-06-26",
         price_as_of: "2026-06-26",
-        latest_evidence_at: "2026-06-26T03:48:00Z",
+        live_evidence_latest_at: "2026-06-26T03:48:00Z",
       },
       disclaimer: "공개 데이터 기반 검토 후보입니다.",
     });

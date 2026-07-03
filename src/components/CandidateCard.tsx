@@ -5,7 +5,7 @@ import { RiskTag } from "@/components/RiskTag";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { WatchlistToggle } from "@/components/WatchlistToggle";
 import { formatDate } from "@/lib/format";
-import type { RecommendationCandidate, RecommendationReason } from "@/types/api";
+import type { MissingDataItem, RecommendationCandidate, RecommendationReason } from "@/types/api";
 
 export function CandidateCard({ candidate }: { candidate: RecommendationCandidate }) {
   const reasons = normalizeReasons(candidate.recommendation_reasons);
@@ -110,7 +110,7 @@ function normalizeReasons(reasons: RecommendationReason[]) {
   return filled;
 }
 
-function formatMissingData(value: unknown[]): string {
+function formatMissingData(value: MissingDataItem[]): string {
   if (!Array.isArray(value) || value.length === 0) {
     return "없음";
   }
