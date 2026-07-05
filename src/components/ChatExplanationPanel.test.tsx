@@ -130,7 +130,7 @@ describe("ChatExplanationPanel", () => {
     mockedPostChat.mockResolvedValue(
       chatResponse({
         answer:
-          "1. **재무 안정성** [ev_005930_news](https://example.com/news?ref=naver)\nhttps://example.com/raw",
+          "1. **재무 안정성** [ev_005930_news](https://example.com/news_(naver))\nhttps://example.com/raw",
       }),
     );
 
@@ -144,6 +144,7 @@ describe("ChatExplanationPanel", () => {
       .map((element) => element.textContent)
       .join("\n");
     expect(renderedEvidenceText).not.toContain("https://");
+    expect(renderedEvidenceText).not.toContain(")");
     expect(screen.queryByText(/\*\*/)).toBeNull();
   });
 

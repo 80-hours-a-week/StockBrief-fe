@@ -38,7 +38,7 @@ function logChatFailure(error: unknown, context: ChatFailureContext) {
 
 function readableAnswer(value: string) {
   return value
-    .replace(/\[([^\]]+)\]\(https?:\/\/[^)\s]+\)/g, "[$1]")
+    .replace(/\[([^\]]+)\]\(https?:\/\/(?:[^()\s]+|\([^()\s]*\))*\)/g, "[$1]")
     .replace(/\*\*([^*\n]+)\*\*/g, "$1")
     .replace(/<?https?:\/\/\S+>?/g, "")
     .trim();
