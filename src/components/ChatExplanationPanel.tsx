@@ -36,6 +36,14 @@ function logChatFailure(error: unknown, context: ChatFailureContext) {
   logClientError("Chat explanation request failed.", error, context);
 }
 
+function readableAnswer(value: string) {
+  return value
+    .replace(/\[([^\]\n]+)\]\(https?:\/\/[^\s\n]*\)/g, "[$1]")
+    .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+    .replace(/<?https?:\/\/\S+>?/g, "")
+    .trim();
+}
+
 interface ChatExplanationPanelProps {
   ticker: string;
   initialSessionId?: string | null;
@@ -136,7 +144,9 @@ export function ChatExplanationPanel({ ticker, initialSessionId = null }: ChatEx
             {policyStatusCopy[response.policy_status]}
           </div>
           {/* React escapes rendered text here; keep agent answers as text, not HTML. */}
-          <p className="whitespace-pre-line text-sm leading-6 text-ink">{response.answer}</p>
+          <p className="whitespace-pre-line break-words text-sm leading-6 text-ink">
+            {readableAnswer(response.answer)}
+          </p>
           <p className="text-xs leading-5 text-muted">{response.disclaimer}</p>
 
           <div>
