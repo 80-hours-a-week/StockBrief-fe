@@ -5,7 +5,7 @@ import { RiskTag } from "@/components/RiskTag";
 import { ScoreBadge } from "@/components/ScoreBadge";
 import { WatchlistToggle } from "@/components/WatchlistToggle";
 import { componentLabel, evidenceTypeLabel, formatDate, formatScore } from "@/lib/format";
-import { getRecommendationCandidate, getStock, getStockEvidence } from "@/lib/api";
+import { ApiError, getRecommendationCandidate, getStock, getStockEvidence } from "@/lib/api";
 import type {
   MissingDataItem,
   RecommendationCandidate,
@@ -259,7 +259,12 @@ async function loadStockData(ticker: string) {
   const [stock, evidence, candidate] = await Promise.all([
     getStock(ticker),
     getStockEvidence(ticker),
-    getRecommendationCandidate(ticker).catch(() => null),
+    getRecommendationCandidate(ticker).catch((error: unknown) => {
+      if (error instanceof ApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }),
   ]);
   return {
     candidate: candidate ?? fallbackCandidate(stock, evidence),
