@@ -28,6 +28,7 @@ export function componentLabel(name: string): string {
     disclosure_event: "공시 이벤트",
     liquidity: "유동성",
     momentum_volatility: "모멘텀/변동성",
+    data_gap: "점수 산정",
   };
   return labels[name] ?? name;
 }

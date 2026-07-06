@@ -6,7 +6,14 @@ import { ScoreBadge } from "@/components/ScoreBadge";
 import { WatchlistToggle } from "@/components/WatchlistToggle";
 import { componentLabel, evidenceTypeLabel, formatDate, formatScore } from "@/lib/format";
 import { getRecommendationCandidate, getStock, getStockEvidence } from "@/lib/api";
-import type { MissingDataItem, ScoreComponent } from "@/types/api";
+import type {
+  MissingDataItem,
+  RecommendationCandidate,
+  ScoreComponent,
+  StockDetail,
+  StockEvidenceItem,
+  StockEvidenceResponse,
+} from "@/types/api";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +51,7 @@ export default async function StockPage({ params }: StockPageProps) {
   const riskTags = candidate.risk_tags.length > 0 ? candidate.risk_tags : ["확인 필요"];
   const missingData = formatMissingData(candidate.missing_data);
   const dataAsOf = formatDate(candidate.data_freshness.as_of);
+  const evidenceGroups = groupEvidenceByType(evidence.evidence);
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-8">
@@ -108,7 +116,7 @@ export default async function StockPage({ params }: StockPageProps) {
               <article key={reason.reason_id} className="border-l-2 border-accent pl-4">
                 <h3 className="text-sm font-semibold text-ink">{componentLabel(reason.component)}</h3>
                 <p className="mt-1 text-sm leading-6 text-muted">{reason.summary}</p>
-                <p className="mt-2 text-xs text-muted">근거 ID: {reason.evidence_ids.join(", ")}</p>
+                <p className="mt-2 text-xs text-muted">연결 근거 {reason.evidence_ids.length}개</p>
               </article>
             ))}
           </div>
@@ -189,39 +197,51 @@ export default async function StockPage({ params }: StockPageProps) {
           </div>
           <span className="text-sm text-muted">기준일 {dataAsOf}</span>
         </div>
-        {evidence.evidence.length === 0 ? (
+        {evidenceGroups.length === 0 ? (
           <div className="border-y border-line py-8 text-sm text-muted">
             {evidence.message ?? "표시할 근거가 아직 없습니다. API 데이터 적재 상태를 확인해 주세요."}
           </div>
         ) : (
-          <div className="divide-y divide-line border-y border-line bg-white">
-            {evidence.evidence.map((item) => (
-              <article key={item.id} className="px-4 py-4">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span className="font-semibold text-accent">{evidenceTypeLabel(item.type)}</span>
-                  <span>{item.source_name}</span>
-                  <span>{evidenceStatusLabel(item.data_status)}</span>
+          <div className="space-y-3">
+            {evidenceGroups.map((group, index) => (
+              <details
+                key={group.type}
+                className="border-y border-line bg-white"
+                open={index === 0}
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-sm font-semibold text-ink marker:hidden">
+                  <span>{evidenceTypeLabel(group.type)} 근거</span>
+                  <span className="shrink-0 text-xs font-medium text-muted">{group.items.length}개</span>
+                </summary>
+                <div className="divide-y divide-line border-t border-line">
+                  {group.items.map((item) => (
+                    <article key={item.id} className="px-4 py-4">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="font-semibold text-accent">{item.source_name}</span>
+                        <span>{evidenceStatusLabel(item.data_status)}</span>
+                        <span>발행일 {formatDate(item.published_at)}</span>
+                        <span>기준일 {formatDate(item.as_of_date)}</span>
+                      </div>
+                      <h3 className="mt-2 font-semibold text-ink">{item.title}</h3>
+                      <p className="mt-1 text-sm leading-6 text-muted">{item.summary}</p>
+                      {item.source_url ? (
+                        <a
+                          href={item.source_url}
+                          className="mt-2 inline-flex text-xs font-semibold text-accent"
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          원문 보기
+                        </a>
+                      ) : (
+                        <p className="mt-2 text-xs text-muted">
+                          출처 확인 {item.source_identifier ?? "필요"}
+                        </p>
+                      )}
+                    </article>
+                  ))}
                 </div>
-                <h3 className="mt-2 font-semibold text-ink">{item.title}</h3>
-                <p className="mt-1 text-sm leading-6 text-muted">{item.summary}</p>
-                <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted">
-                  <span>근거 ID: {item.id}</span>
-                  <span>발행일: {formatDate(item.published_at)}</span>
-                  <span>기준일: {formatDate(item.as_of_date)}</span>
-                  {item.source_url ? (
-                    <a
-                      href={item.source_url}
-                      className="font-semibold text-accent"
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      원문 보기
-                    </a>
-                  ) : (
-                    <span>출처 ID: {item.source_identifier ?? "확인 필요"}</span>
-                  )}
-                </div>
-              </article>
+              </details>
             ))}
           </div>
         )}
@@ -236,12 +256,47 @@ export default async function StockPage({ params }: StockPageProps) {
 }
 
 async function loadStockData(ticker: string) {
-  const [candidate, stock, evidence] = await Promise.all([
-    getRecommendationCandidate(ticker),
+  const [stock, evidence, candidate] = await Promise.all([
     getStock(ticker),
     getStockEvidence(ticker),
+    getRecommendationCandidate(ticker).catch(() => null),
   ]);
-  return { candidate, stock, evidence };
+  return {
+    candidate: candidate ?? fallbackCandidate(stock, evidence),
+    stock,
+    evidence,
+  };
+}
+
+function fallbackCandidate(
+  stock: StockDetail,
+  evidence: StockEvidenceResponse,
+): RecommendationCandidate {
+  const evidenceIds = evidence.evidence.slice(0, 3).map((item) => item.id);
+  const asOf = evidence.evidence[0]?.as_of_date ?? evidence.evidence[0]?.published_at ?? "";
+  return {
+    ticker: stock.ticker,
+    name: stock.name,
+    market: stock.market,
+    sector: stock.sector,
+    recommendation_score: 0,
+    score_components: [],
+    recommendation_reasons: [
+      {
+        reason_id: `${stock.ticker}-unscored`,
+        component: "data_gap",
+        summary: "추천 후보 점수는 아직 산정되지 않았지만 기본 종목 정보와 공개 근거는 확인할 수 있습니다.",
+        evidence_ids: evidenceIds,
+        source_document_ids: [],
+      },
+    ],
+    risk_tags: ["점수 산정 필요"],
+    evidence_level: evidence.evidence.length >= 2 ? "medium" : "weak",
+    evidence_count: evidence.evidence.length,
+    missing_data: ["recommendation_score"],
+    data_freshness: { as_of: asOf },
+    disclaimer: "공개 데이터 기반 검토 후보이며 최종 투자 판단은 사용자에게 있습니다.",
+  };
 }
 
 function normalizeScoreComponents(components: ScoreComponent[]): ScoreComponent[] {
@@ -303,4 +358,13 @@ function evidenceStatusLabel(status: string): string {
     missing: "누락",
   };
   return labels[status] ?? status;
+}
+
+const EVIDENCE_TYPE_ORDER = ["disclosure", "news", "financial", "price"] as const;
+
+function groupEvidenceByType(items: StockEvidenceItem[]) {
+  return EVIDENCE_TYPE_ORDER.map((type) => ({
+    type,
+    items: items.filter((item) => item.type === type),
+  })).filter((group) => group.items.length > 0);
 }

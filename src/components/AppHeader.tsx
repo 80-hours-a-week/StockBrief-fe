@@ -13,10 +13,9 @@ const navItems = [
 export function AppHeader() {
   return (
     <header className="border-b border-line bg-white/90 backdrop-blur">
-      <div className="mx-auto flex min-h-16 w-full max-w-7xl flex-col items-start gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex min-h-14 w-full max-w-7xl flex-col items-start gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href="/" className="flex items-baseline gap-2">
           <span className="text-xl font-semibold text-ink">StockBrief</span>
-          <span className="hidden text-sm text-muted sm:inline">국내 종목 검토 후보</span>
         </Link>
         <nav className="flex w-full items-center gap-1 overflow-x-auto sm:w-auto">
           {navItems.map((item) => (
